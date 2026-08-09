@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0E1830"/>
+      <stop offset="0.55" stop-color="#0A1120"/>
+      <stop offset="1" stop-color="#070B14"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.45" r="0.55">
+      <stop offset="0" stop-color="#2F8CFF" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#2F8CFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="spark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.5" stop-color="#BFE3FF"/>
+      <stop offset="1" stop-color="#57B8FF"/>
+    </linearGradient>
+    <linearGradient id="sparkSmall" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#57B8FF"/>
+      <stop offset="1" stop-color="#FFFFFF"/>
+    </linearGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+  </defs>
+
+  <!-- rounded background -->
+  <rect x="8" y="8" width="496" height="496" rx="108" fill="url(#bg)"/>
+  <rect x="8" y="8" width="496" height="496" rx="108" fill="none" stroke="#1E3A5F" stroke-width="4"/>
+  <rect x="8" y="8" width="496" height="496" rx="108" fill="url(#glow)"/>
+
+  <!-- main sparkle -->
+  <path d="M256 88 C 268 196, 316 244, 424 256 C 316 268, 268 316, 256 424 C 244 316, 196 268, 88 256 C 196 244, 244 196, 256 88 Z"
+        fill="url(#spark)" filter="url(#soft)" opacity="0.55"/>
+  <path d="M256 88 C 268 196, 316 244, 424 256 C 316 268, 268 316, 256 424 C 244 316, 196 268, 88 256 C 196 244, 244 196, 256 88 Z"
+        fill="url(#spark)"/>
+
+  <!-- small accents -->
+  <path d="M132 138 C 138 176, 156 194, 194 200 C 156 206, 138 224, 132 262 C 126 224, 108 206, 70 200 C 108 194, 126 176, 132 138 Z"
+        fill="url(#sparkSmall)" opacity="0.9"/>
+  <path d="M384 344 C 388 370, 402 384, 428 388 C 402 392, 388 406, 384 432 C 380 406, 366 392, 340 388 C 366 384, 380 370, 384 344 Z"
+        fill="url(#sparkSmall)" opacity="0.75"/>
+
+  <!-- circuit dots -->
+  <circle cx="332" cy="150" r="7" fill="#20D6B5" opacity="0.9"/>
+  <circle cx="180" cy="360" r="5" fill="#2F8CFF" opacity="0.8"/>
+</svg>

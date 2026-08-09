@@ -1,0 +1,6 @@
+dist
+node_modules
+public
+.freebuff
+/backend
+package-lock.json

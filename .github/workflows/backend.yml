@@ -1,0 +1,174 @@
+name: CI (Laravel + Frontend)
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - "src/**"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - "index.html"
+      - "vite.config.ts"
+      - "tsconfig.json"
+      - ".github/workflows/backend.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - "src/**"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - "index.html"
+      - "vite.config.ts"
+      - "tsconfig.json"
+      - ".github/workflows/backend.yml"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Detects which side of the project changed so the backend and frontend jobs
+  # only run when their own files are touched. A workflow-file change re-runs
+  # both sides (the pipeline itself must be validated too).
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      workflow: ${{ steps.filter.outputs.workflow }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'src/**'
+              - 'public/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'index.html'
+              - 'vite.config.ts'
+              - 'tsconfig.json'
+            workflow:
+              - '.github/workflows/backend.yml'
+
+  lint-and-test:
+    name: PHP ${{ matrix.php }} — lint + tests
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.workflow == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["8.2", "8.3"]
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo, pdo_sqlite, sqlite3, mbstring, intl, zip, bcmath, fileinfo
+          coverage: xdebug
+          tools: composer:v2
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: ${{ runner.os }}-composer-${{ matrix.php }}-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-${{ matrix.php }}-
+
+      # Laravel writes package discovery + cache files here during composer
+      # install (post-autoload-dump runs `php artisan package:discover`).
+      - name: Prepare runtime directories
+        run: |
+          mkdir -p bootstrap/cache \
+                   storage/framework/cache \
+                   storage/framework/sessions \
+                   storage/framework/views \
+                   storage/logs
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+
+      - name: Lint (Pint)
+        run: vendor/bin/pint --test
+
+      - name: Run tests (PHPUnit)
+        run: vendor/bin/phpunit
+
+      # Coverage is generated once (PHP 8.2) and enforced server-side by
+      # scripts/check-coverage.php, which parses the clover report and fails
+      # the build when overall line coverage drops below the threshold.
+      - name: Code coverage — enforce 80% (PHP 8.2)
+        if: matrix.php == '8.2'
+        run: |
+          vendor/bin/phpunit --coverage-clover coverage/clover.xml --coverage-text
+          php scripts/check-coverage.php coverage/clover.xml 80
+
+  frontend:
+    name: Frontend — typecheck + build
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.workflow == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # node_modules is cached keyed on the lockfile; on an exact hit the
+      # install is skipped entirely (npm ci wipes node_modules, so it only
+      # runs on cache miss). setup-node's npm cache still speeds up fresh
+      # installs.
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint (ESLint + Prettier)
+        run: |
+          npm run lint
+          npm run format:check
+
+      - name: Typecheck (tsc --noEmit)
+        run: npm run typecheck
+
+      - name: Build (vite build)
+        run: npm run build
