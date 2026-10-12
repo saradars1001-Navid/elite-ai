@@ -10,7 +10,9 @@ import {
   Globe,
   GraduationCap,
   Clock,
+  ChevronLeft,
 } from "lucide-react";
+import { toolCategoryIcon } from "../lib/entityIcons";
 import { TOOL_CATEGORIES } from "../lib/data";
 import { useApp } from "../lib/store";
 import { cls, toFa } from "../lib/utils";
@@ -60,13 +62,15 @@ export default function Tools() {
   );
 
   return (
-    <div className="container-x py-10 sm:py-14">
-      <div className="mb-8">
-        <span className="chip mb-3 border border-neon/25 bg-neon/10 text-sky">
-          دایرکتوری ابزارها
-        </span>
-        <h1 className="text-2xl font-black sm:text-3xl">بانک ابزارهای هوش مصنوعی</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-7 text-muted">
+    <div className="tg-page px-4 py-4">
+      <div className="mb-4">
+        <div className="max-lg:hidden">
+          <span className="chip mb-3 border border-neon/25 bg-neon/10 text-sky">
+            دایرکتوری ابزارها
+          </span>
+          <h1 className="text-2xl font-black sm:text-3xl">بانک ابزارهای هوش مصنوعی</h1>
+        </div>
+        <p className="mt-2 max-w-2xl text-sm leading-7 text-muted max-lg:mt-0">
           {toFa(aiTools.length)} ابزار بررسی‌شده با اطلاعات به‌روز؛ دسته‌بندی، قیمت، سطح کاربری و
           آموزش‌های مرتبط در پلتفرم.
         </p>
@@ -148,10 +152,10 @@ export default function Tools() {
                   step={0.5}
                   value={minRating}
                   onChange={(e) => setMinRating(Number(e.target.value))}
-                  className="w-full accent-[#F5A623]"
+                  className="w-full accent-[#F59E0B]"
                   dir="ltr"
                 />
-                <span className="shrink-0 text-xs font-bold text-warn">{toFa(minRating)}★</span>
+                <span className="shrink-0 text-xs font-bold text-warn">{toFa(minRating)}</span>
               </div>
             </div>
             <label className="flex cursor-pointer items-center gap-2 text-sm text-muted">
@@ -159,7 +163,7 @@ export default function Tools() {
                 type="checkbox"
                 checked={onlyNew}
                 onChange={(e) => setOnlyNew(e.target.checked)}
-                className="h-4 w-4 accent-[#2F8CFF]"
+                className="h-4 w-4 accent-[#3B82F6]"
               />
               فقط ابزارهای جدید
             </label>
@@ -193,52 +197,32 @@ export default function Tools() {
           text="فیلترها را تغییر دهید یا عبارت دیگری جست‌وجو کنید."
         />
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="tg-group max-lg:-mx-1 lg:rounded-xl lg:shadow-card">
           {list.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setDetail(t)}
-              className="card group flex flex-col p-5 text-right transition-all hover:-translate-y-0.5 hover:border-neon/40 hover:shadow-glow-sm"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-navy text-lg">
-                    {TOOL_EMOJI[t.category] ?? "🛠️"}
+            <button key={t.id} onClick={() => setDetail(t)} className="tg-row">
+              <span className="tg-row-icon !h-11 !w-11 rounded-xl bg-navy">
+                <ToolIcon category={t.category} />
+              </span>
+              <span className="tg-row-body">
+                <span className="tg-row-title">{t.name}</span>
+                <span className="tg-row-sub">{t.tagline}</span>
+                <span className="mt-1 flex flex-wrap items-center gap-1.5">
+                  <span className={cls("chip", PRICING_STYLE[t.pricing])}>
+                    <BadgePercent size={11} /> {t.pricing}
                   </span>
-                  <div className="min-w-0">
-                    <h3 className="truncate font-bold transition-colors group-hover:text-sky">
-                      {t.name}
-                    </h3>
-                    <p className="truncate text-xs text-muted">{t.tagline}</p>
-                  </div>
-                </div>
-                {t.isNew && (
-                  <span className="chip shrink-0 border border-teal/25 bg-teal/10 text-teal">
-                    جدید
+                  <span className={cls("chip", LEVEL_STYLE[t.level])}>
+                    <GraduationCap size={11} /> {t.level}
                   </span>
-                )}
-              </div>
-              <p className="mt-3 line-clamp-2 flex-1 text-sm leading-7 text-muted">
-                {t.description}
-              </p>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <span className={cls("chip", PRICING_STYLE[t.pricing])}>
-                  <BadgePercent size={11} /> {t.pricing}
+                  {t.isNew && (
+                    <span className="chip border border-teal/25 bg-teal/10 text-teal">جدید</span>
+                  )}
+                  <span className="ms-auto flex items-center gap-1 text-[11px] text-muted">
+                    <Stars rating={t.rating} size={11} />
+                    <b className="text-text">{toFa(t.rating)}</b>
+                  </span>
                 </span>
-                <span className={cls("chip", LEVEL_STYLE[t.level])}>
-                  <GraduationCap size={11} /> {t.level}
-                </span>
-              </div>
-              <div className="mt-3 flex items-center justify-between border-t border-line/50 pt-3">
-                <span className="flex items-center gap-1.5 text-xs">
-                  <Stars rating={t.rating} size={12} />
-                  <b className="text-text">{toFa(t.rating)}</b>
-                  <span className="text-muted">({toFa(t.reviews.toLocaleString())})</span>
-                </span>
-                <span className="flex items-center gap-1 text-xs font-bold text-neon">
-                  جزئیات <ExternalLink size={12} />
-                </span>
-              </div>
+              </span>
+              <ChevronLeft size={16} className="shrink-0 text-locked" />
             </button>
           ))}
         </div>
@@ -249,8 +233,8 @@ export default function Tools() {
         {detail && (
           <div className="space-y-5">
             <div className="flex flex-wrap items-center gap-3">
-              <span className="grid h-12 w-12 place-items-center rounded-xl bg-navy text-2xl">
-                {TOOL_EMOJI[detail.category] ?? "🛠️"}
+              <span className="grid h-12 w-12 place-items-center rounded-xl bg-navy">
+                <ToolIcon category={detail.category} />
               </span>
               <div className="min-w-0 flex-1">
                 <h3 className="text-lg font-black">{detail.name}</h3>
@@ -347,19 +331,8 @@ export default function Tools() {
   );
 }
 
-const TOOL_EMOJI: Record<string, string> = {
-  "چت و دستیار هوشمند": "💬",
-  "تولید تصویر": "🎨",
-  "تولید ویدئو": "🎬",
-  "تولید صدا": "🎙️",
-  "تولید موسیقی": "🎵",
-  "تولید متن": "✍️",
-  "ارائه و اسلاید": "📊",
-  طراحی: "🖌️",
-  برنامه‌نویسی: "💻",
-  "تحلیل داده": "📈",
-  آموزش: "🎓",
-  بازاریابی: "📣",
-  "مدیریت کسب‌وکار": "🏢",
-  اتوماسیون: "⚙️",
-};
+/** Tool category → lucide icon (was an emoji map). */
+function ToolIcon({ category }: { category: string }) {
+  const I = toolCategoryIcon(category);
+  return <I size={19} />;
+}

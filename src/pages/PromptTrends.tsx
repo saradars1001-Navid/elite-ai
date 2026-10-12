@@ -40,14 +40,16 @@ export default function PromptTrends() {
     setTimeout(() => setCopied(null), 1600);
   };
   return (
-    <div className="container-x py-8 sm:py-12">
-      <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+    <div className="tg-page px-4 py-4">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <span className="chip mb-3 border border-warn/25 bg-warn/10 text-warn">
-            <Flame size={13} /> کتابخانه ترند
-          </span>
-          <h1 className="text-2xl font-black sm:text-3xl">پرامپت‌های محبوب این هفته</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-7 text-muted">
+          <div className="max-lg:hidden">
+            <span className="chip mb-3 border border-warn/25 bg-warn/10 text-warn">
+              <Flame size={13} /> کتابخانه ترند
+            </span>
+            <h1 className="text-2xl font-black sm:text-3xl">پرامپت‌های محبوب این هفته</h1>
+          </div>
+          <p className="mt-2 max-w-2xl text-sm leading-7 text-muted max-lg:mt-0">
             پرامپت‌های کاربردی برای تولید تصویر، ویدئو، موسیقی، پاورپوینت و بیشتر؛ آماده استفاده و
             قابل شخصی‌سازی.
           </p>
@@ -87,17 +89,12 @@ export default function PromptTrends() {
           </button>
         </div>
       </div>
-      <div className="no-scrollbar mb-6 flex gap-2 overflow-x-auto pb-1">
+      <div className="tg-tabs -mx-4 mb-1">
         {categories.map((c) => (
           <button
             key={c}
             onClick={() => setCategory(c)}
-            className={cls(
-              "chip shrink-0 border px-4 py-2",
-              category === c
-                ? "border-neon/50 bg-neon/15 text-sky"
-                : "border-line/60 bg-surface text-muted"
-            )}
+            className={cls("tg-tab-item", category === c && "active")}
           >
             {c}
           </button>
@@ -110,7 +107,7 @@ export default function PromptTrends() {
           text="فیلتر یا عبارت جست‌وجو را تغییر بده."
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="space-y-3">
           {visible.map((p, i) => (
             <PromptCard
               key={p.id}
@@ -141,64 +138,63 @@ function PromptCard({
   onLike: () => void;
 }) {
   return (
-    <article className="card flex h-full flex-col overflow-hidden">
-      <div className="flex items-center justify-between border-b border-line/50 bg-surface2/35 px-4 py-3">
-        <span className="flex items-center gap-2 text-xs font-bold text-warn">
-          <span className="grid h-6 w-6 place-items-center rounded-md bg-warn/10">
-            {toFa(rank)}
-          </span>
-          <Flame size={14} /> {prompt.category}
+    <article className="tg-group max-lg:-mx-1 lg:rounded-xl lg:shadow-card">
+      <div className="tg-row items-start">
+        <span className="tg-row-icon !h-10 !w-10 rounded-full bg-warn/10 text-warn">
+          {toFa(rank)}
         </span>
-        <span className="text-[10px] text-muted">{timeAgo(prompt.createdAt)}</span>
+        <span className="tg-row-body">
+          <span className="tg-row-title">{prompt.title}</span>
+          <span className="tg-row-sub">
+            {prompt.category} · {prompt.tool} · {prompt.author}
+          </span>
+          <span className="mt-1 block text-[11px] text-locked">{timeAgo(prompt.createdAt)}</span>
+        </span>
+        <Flame size={16} className="shrink-0 text-warn" />
       </div>
-      <div className="flex flex-1 flex-col p-5">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <h2 className="text-base font-black leading-7">{prompt.title}</h2>
-            <p className="mt-1 text-xs text-muted">
-              {prompt.tool} · {prompt.author}
-            </p>
-          </div>
-          <Sparkles size={18} className="shrink-0 text-neon" />
-        </div>
-        <p className="mt-3 text-xs leading-6 text-muted">{prompt.description}</p>
-        <div className="mt-4 rounded-lg border border-line/50 bg-base/60 p-3.5">
-          <p className="whitespace-pre-wrap text-xs leading-7 text-text" dir="auto">
+
+      <div className="tg-row items-start">
+        <span className="tg-row-body">
+          <span className="whitespace-pre-wrap text-[13px] leading-6 text-text" dir="auto">
             {prompt.prompt}
-          </p>
-        </div>
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {prompt.tags.map((t) => (
-            <span key={t} className="text-[10px] text-sky">
-              #{t}
-            </span>
-          ))}
-        </div>
-        <div className="mt-auto flex items-center justify-between pt-5">
-          <span className="text-[11px] text-muted">
+          </span>
+        </span>
+      </div>
+
+      <div className="tg-row">
+        <span className="tg-row-body">
+          <span className="tg-row-sub">{prompt.description}</span>
+          <span className="mt-1 flex flex-wrap gap-1.5">
+            {prompt.tags.map((t) => (
+              <span key={t} className="text-[10px] text-sky">
+                #{t}
+              </span>
+            ))}
+          </span>
+          <span className="mt-1 block text-[11px] text-muted">
             {toFa(prompt.uses)} استفاده · {toFa(prompt.likes)} پسند
           </span>
-          <div className="flex gap-2">
-            <button
-              onClick={onLike}
-              className="btn-ghost btn-sm !px-2 text-danger"
-              aria-label="پسندیدن"
-            >
-              <Heart size={15} />
-            </button>
-            <button onClick={onCopy} className="btn-primary btn-sm">
-              {copied ? (
-                <>
-                  <Check size={14} /> کپی شد
-                </>
-              ) : (
-                <>
-                  <Copy size={14} /> کپی پرامپت
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          <button
+            onClick={onLike}
+            className="btn-ghost btn-sm !px-2 text-danger"
+            aria-label="پسندیدن"
+          >
+            <Heart size={15} />
+          </button>
+          <button onClick={onCopy} className="btn-primary btn-sm">
+            {copied ? (
+              <>
+                <Check size={14} /> کپی شد
+              </>
+            ) : (
+              <>
+                <Copy size={14} /> کپی
+              </>
+            )}
+          </button>
+        </span>
       </div>
     </article>
   );

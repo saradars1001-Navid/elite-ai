@@ -63,11 +63,11 @@ export function validateIranPhone(phone: string): boolean {
 }
 
 export const AVATAR_COLORS = [
-  "#2F8CFF",
+  "#3B82F6",
   "#20D6B5",
-  "#8B5CF6",
-  "#F5A623",
-  "#F0445B",
+  "#7C3AED",
+  "#F59E0B",
+  "#EF4444",
   "#57B8FF",
   "#10B981",
   "#EC4899",

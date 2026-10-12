@@ -66,13 +66,12 @@ export default function Community() {
   };
 
   return (
-    <div className="container-x py-10 sm:py-14">
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <span className="chip mb-3 border border-neon/25 bg-neon/10 text-sky">کامیونیتی</span>
-          <h1 className="text-2xl font-black sm:text-3xl">کامیونیتی هوش مصنوعی</h1>
-          <p className="mt-2 max-w-xl text-sm leading-7 text-muted">
-            بپرسید، تجربه‌تان را به اشتراک بگذارید و با متخصصان و یادگیرنده‌ها گفت‌وگو کنید.
+    <div className="mx-auto w-full max-w-[720px] px-4 py-4">
+      <header className="flex items-end justify-between gap-3 pb-3">
+        <div className="min-w-0">
+          <h1 className="text-[22px] font-semibold leading-8 max-lg:hidden">کامیونیتی</h1>
+          <p className="mt-1 text-[13px] leading-6 text-muted">
+            بپرس، تجربه‌ات را به‌اشتراک بگذار و با بقیه گفت‌وگو کن.
           </p>
         </div>
         <button
@@ -81,66 +80,63 @@ export default function Community() {
             setNewOpen(true);
             setPosted(false);
           }}
-          className="btn-primary btn-md"
+          className="btn-primary btn-sm shrink-0"
         >
-          <MessageSquarePlus size={17} /> پست جدید
+          <MessageSquarePlus size={15} /> پست جدید
         </button>
+      </header>
+
+      {/* categories */}
+      <div className="tg-tabs -mx-4">
+        {["همه", ...COMMUNITY_CATEGORIES].map((c) => (
+          <button
+            key={c}
+            onClick={() => setCat(c)}
+            className={cls("tg-tab-item", cat === c && "active")}
+          >
+            {c}
+          </button>
+        ))}
       </div>
 
-      {/* toolbar */}
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        <div className="no-scrollbar flex max-w-full gap-1 overflow-x-auto rounded-lg border border-line/60 bg-surface p-1">
-          {["همه", ...COMMUNITY_CATEGORIES].map((c) => (
-            <button
-              key={c}
-              onClick={() => setCat(c)}
-              className={cls(
-                "shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                cat === c ? "bg-neon/15 text-sky" : "text-muted hover:text-text"
-              )}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-        <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
-          <Search size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-locked" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="جست‌وجو در پست‌ها…"
-            className="input !pr-9 !py-2.5 text-sm"
-          />
-        </div>
-        <div className="flex gap-1 rounded-lg border border-line/60 bg-surface p-1">
-          {(
-            [
-              { id: "new", label: "جدیدترین" },
-              { id: "popular", label: "محبوب‌ترین" },
-              { id: "unanswered", label: "بی‌پاسخ" },
-            ] as { id: Sort; label: string }[]
-          ).map((s) => (
-            <button
-              key={s.id}
-              onClick={() => setSort(s.id)}
-              className={cls(
-                "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                sort === s.id ? "bg-neon/15 text-sky" : "text-muted hover:text-text"
-              )}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
+      {/* search + sort */}
+      <div className="relative mb-3 mt-3">
+        <Search size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-locked" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="جست‌وجو در پست‌ها…"
+          className="input !pr-10"
+        />
+      </div>
+      <div className="mb-3 flex gap-1.5">
+        {(
+          [
+            { id: "new", label: "جدیدترین" },
+            { id: "popular", label: "محبوب‌ترین" },
+            { id: "unanswered", label: "بی‌پاسخ" },
+          ] as { id: Sort; label: string }[]
+        ).map((s) => (
+          <button
+            key={s.id}
+            onClick={() => setSort(s.id)}
+            className={cls(
+              "rounded-[10px] px-3 py-1.5 text-[13px] font-medium transition-colors",
+              sort === s.id ? "bg-surface2 text-text" : "text-muted hover:text-text"
+            )}
+          >
+            {s.label}
+          </button>
+        ))}
       </div>
 
       {/* posts */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {posts.map((p) => {
           const liked = (state.postLikes[p.id] || 0) > 0;
           const saved = state.savedPosts.includes(p.id);
           return (
-            <article key={p.id} className="card p-5 transition-colors hover:border-neon/30 sm:p-6">
+            <article key={p.id} className="rounded-xl bg-surface p-4 shadow-card sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <Avatar name={p.author.name} size="md" />
@@ -230,7 +226,7 @@ export default function Community() {
               </div>
               {reported === p.id && (
                 <p className="mt-2 text-[11px] text-teal animate-fade-in">
-                  ✓ گزارش شما ثبت شد؛ توسط تیم مدیریت بررسی می‌شود.
+                  گزارش شما ثبت شد؛ توسط تیم مدیریت بررسی می‌شود.
                 </p>
               )}
             </article>

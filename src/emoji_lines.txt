@@ -1,0 +1,103 @@
+src\components\ui.tsx:285:           <span className="text-lg">🏆</span> چالش هفتگی
+src\lib\data.ts:74:     icon: "🧠",
+src\lib\data.ts:917:     icon: "🎨",
+src\lib\data.ts:1457:     icon: "🚀",
+src\lib\data.ts:1724:   { level: 1, title: "تازه‌کار", icon: "🌱", minXp: 0 },
+src\lib\data.ts:1726:   { level: 3, title: "علاقه‌مند", icon: "🧠", minXp: 250 },
+src\lib\data.ts:1727:   { level: 4, title: "جستجوگر", icon: "🔍", minXp: 450 },
+src\lib\data.ts:1728:   { level: 5, title: "یادگیرنده", icon: "📘", minXp: 700 },
+src\lib\data.ts:1729:   { level: 6, title: "کاوشگر", icon: "🧭", minXp: 1000 },
+src\lib\data.ts:1730:   { level: 7, title: "مهارت‌آموز", icon: "🛠️", minXp: 1400 },
+src\lib\data.ts:1732:   { level: 9, title: "حرفه‌ای", icon: "💼", minXp: 2500 },
+src\lib\data.ts:1733:   { level: 10, title: "متخصص", icon: "🎯", minXp: 3300 },
+src\lib\data.ts:1734:   { level: 11, title: "استاد", icon: "👑", minXp: 4300 },
+src\lib\data.ts:1735:   { level: 12, title: "نخبه", icon: "🚀", minXp: 5500 },
+src\lib\data.ts:1792:     icon: "📚",
+src\lib\data.ts:1810:     icon: "🎮",
+src\lib\data.ts:1828:     icon: "💬",
+src\lib\data.ts:3500:     icon: "🎯",
+src\lib\data.ts:3507:     icon: "📚",
+src\lib\data.ts:3528:     icon: "🎨",
+src\lib\data.ts:3542:     icon: "🚀",
+src\lib\data.ts:3549:     icon: "🔥",
+src\lib\data.ts:3556:     icon: "🏆",
+src\lib\data.ts:3563:     icon: "🤝",
+src\lib\data.ts:3805:     emoji: "💬",
+src\lib\data.ts:3813:     emoji: "🧠",
+src\lib\data.ts:3821:     emoji: "🎨",
+src\lib\data.ts:3829:     emoji: "💻",
+src\lib\laravel.ts:81:     icon: String(row.icon || "🧠"),
+src\lib\laravel.ts:266:       emoji: String(row.emoji || "🧠"),
+src\lib\promptlab.ts:125:       ? `🖼️ بر اساس درخواست شما («${ex}») صحنهٔ زیر تولید شد:`
+src\lib\promptlab.ts:127:         ? `👨‍💻 بر اساس درخواست شما («${ex}») کد زیر پیشنهاد می‌شود:`
+src\lib\promptlab.ts:154:                 `**نسخهٔ صمیمی:**\n\nسلام! 🌟 بر اساس ${ex}، این پیشنهاد را آماده کردم:\n\n- بخش اول: معرفی و ارتباط با مخاطب\n- بخش دوم: ارزش اصلی و مزیت‌ها\n- بخش آخر: سؤال روشن برای ادامهٔ گفت‌وگو\n\nاگر لحن یا طول آن را تغییر دهم، بگویید.`,
+src\lib\promptlab.ts:168:     تصویر: "🎨",
+src\lib\promptlab.ts:169:     کدنویسی: "💻",
+src\lib\promptlab.ts:170:     تحلیل: "📊",
+src\lib\promptlab.ts:171:     جدول: "🧾",
+src\lib\promptlab.ts:172:     متن: "📝",
+src\lib\promptlab.ts:175:   return map[cat] ?? "🤖";
+src\lib\store.tsx:967:                       title: "برد در مسابقه زنده 🏆",
+src\pages\Checkout.tsx:471:                 : "پرداخت با موفقیت انجام شد 🎉"
+src\pages\Community.tsx:229:                   ✓ گزارش شما ثبت شد؛ توسط تیم مدیریت بررسی می‌شود.
+src\pages\Dashboard.tsx:92:                 👋
+src\pages\Dashboard.tsx:232:                 همه فصل‌ها را در اختیار دارید! 🎉
+src\pages\Dashboard.tsx:297:                     {earned ? b.icon : "🔒"}
+src\pages\ExamResult.tsx:188:                 `نمره من در آزمون «${ch.exam.title}» آکادمی ایلیت: ${toFa(attempt.score)} از ۱۰۰ 🎓`
+src\pages\Exercises.tsx:150:                   ✓ {status.status}
+src\pages\Home.tsx:205:                     <p className="text-muted">۷ روز پیاپی 🔥</p>
+src\pages\LiveMatch.tsx:925:                     ? "پاسخ درست بود! 🎉"
+src\pages\LiveMatch.tsx:934:                     ? "پاسخ درست بود! 🎉"
+src\pages\LiveMatch.tsx:1023:               ? "قهرمان مسابقه! 🏆"
+src\pages\LiveMatch.tsx:1114:               <Share2 size={15} /> {shared ? "کپی شد ✓" : "اشتراک نتیجه"}
+src\pages\PaymentStatus.tsx:77:             <h1 className="text-2xl font-black">دسترسی شما فعال شد 🎉</h1>
+src\pages\PostDetail.tsx:156:             ✓ گزارش شما ثبت شد؛ توسط تیم مدیریت بررسی می‌شود.
+src\pages\PostDetail.tsx:180:                 {sent && <p className="mt-2 text-[11px] text-teal">✓ پاسخ شما ثبت شد</p>}
+src\pages\Profile.tsx:360:                 <span className="text-2xl">{earned ? b.icon : "🔒"}</span>
+src\pages\Profile.tsx:392:                     {chapters.find((c) => c.id === p.chapterId)?.icon ?? "📦"}
+src\pages\Quiz.tsx:161:               {CAT_ICONS[qz.category] ?? "🧩"}
+src\pages\Quiz.tsx:247:                 {i < streak ? "✓" : "·"}
+src\pages\Quiz.tsx:265:   "ابزارهای هوش مصنوعی": "🛠️",
+src\pages\Quiz.tsx:267:   "تولید تصویر": "🎨",
+src\pages\Quiz.tsx:268:   "تولید ویدئو": "🎬",
+src\pages\Quiz.tsx:269:   "هوش مصنوعی مولد": "🧠",
+src\pages\Quiz.tsx:271:   "کدنویسی با AI": "💻",
+src\pages\Quiz.tsx:272:   "اخلاق و امنیت هوش مصنوعی": "🛡️",
+src\pages\QuizPlay.tsx:243:                 {selected === q.correct ? "پاسخ درست بود! 🎉" : "پاسخ درست:"}
+src\pages\QuizPlay.tsx:262:       ? { t: "فوق‌العاده!", d: "شما یک متخصص واقعی هوش مصنوعی هستید! 🏆" }
+src\pages\QuizPlay.tsx:300:                 const text = `در کوییز «${quiz.title}» آکادمی ایلیت: ${toFa(percentScore)}٪ درست پاسخ دادم (${toFa(correctCount)} از ${toFa(questions.length)}) 🎯`;
+src\pages\QuizPlay.tsx:307:               <Share2 size={15} /> {shared ? "کپی شد ✓" : "اشتراک نتیجه"}
+src\pages\Receipt.tsx:49:               {ch?.icon ?? "📦"}
+src\pages\Tools.tsx:157:                 <span className="shrink-0 text-xs font-bold text-warn">{toFa(minRating)}★</span>
+src\pages\Tools.tsx:203:                 {TOOL_EMOJI[t.category] ?? "🛠️"}
+src\pages\Tools.tsx:236:                 {TOOL_EMOJI[detail.category] ?? "🛠️"}
+src\pages\Tools.tsx:334:   "چت و دستیار هوشمند": "💬",
+src\pages\Tools.tsx:335:   "تولید تصویر": "🎨",
+src\pages\Tools.tsx:336:   "تولید ویدئو": "🎬",
+src\pages\Tools.tsx:337:   "تولید صدا": "🎙️",
+src\pages\Tools.tsx:338:   "تولید موسیقی": "🎵",
+src\pages\Tools.tsx:340:   "ارائه و اسلاید": "📊",
+src\pages\Tools.tsx:341:   طراحی: "🖌️",
+src\pages\Tools.tsx:342:   برنامه‌نویسی: "💻",
+src\pages\Tools.tsx:343:   "تحلیل داده": "📈",
+src\pages\Tools.tsx:344:   آموزش: "🎓",
+src\pages\Tools.tsx:345:   بازاریابی: "📣",
+src\pages\Tools.tsx:346:   "مدیریت کسب‌وکار": "🏢",
+src\pages\UIKitHub.tsx:100:   const moods = ["😞", "🙁", "😐", "🙂", "😀"];
+src\pages\admin\Chapters.tsx:61:     icon: "📘",
+src\pages\admin\Chapters.tsx:124:             ✓ تغییرات ذخیره و در سایت اعمال شد.
+src\pages\admin\Chapters.tsx:281:               <Save size={15} /> ذخیره تغییرات {saved && "✓"}
+src\pages\admin\Community.tsx:44:           ✓ تغییرات ذخیره شد.
+src\pages\admin\Dashboard.tsx:57:     icon: c.icon || "📘",
+src\pages\admin\Exams.tsx:42:             <Save size={15} /> ذخیره {saved && "✓"}
+src\pages\admin\Notifications.tsx:99:           {sent.ok ? "✓ " : "✕ "}
+src\pages\admin\Payments.tsx:120:           ✓ {flashText}
+src\pages\admin\PromptLab.tsx:15:   emoji: "🤖",
+src\pages\admin\Quizzes.tsx:100:           ✓ تغییرات ذخیره و در بخش کوییز سایت اعمال شد.
+src\pages\admin\Quizzes.tsx:288:                   ✓ کوییز جدید ساخته شد (id: <b dir="ltr">{genResult}</b>)
+src\pages\admin\Settings.tsx:69:             <Save size={15} /> ذخیره {saved && "✓"}
+src\pages\admin\Tools.tsx:116:             <Plus size={15} /> افزودن ابزار {saved && "✓"}
+src\pages\admin\Tools.tsx:123:           ✓ تغییرات ذخیره و در صفحه بانک ابزارها اعمال شد.
+src\pages\admin\Tools.tsx:133:                   🛠️
+src\pages\admin\Tools.tsx:152:             <Td className="font-bold text-warn">{toFa(t.rating)} ★</Td>
+src\pages\admin\Users.tsx:67:           ✓ تغییرات کاربر ذخیره شد.

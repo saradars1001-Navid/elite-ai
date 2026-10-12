@@ -137,7 +137,7 @@ export async function laravelAdminPricingPreview(payload: {
     },
     body: JSON.stringify(payload),
   });
-  if (!response.ok) throw new Error("شبیه‌سازی قیمت ناموفق بود");
+  if (!response.ok) throw new Error("محاسبه قیمت ناموفق بود");
   return (await response.json()) as AdminPricingPreview;
 }
 

@@ -3,7 +3,7 @@ import { Save, Plus, Trash2, Pencil, Wand2, History, Sparkles, Users } from "luc
 import { AdminHeader, Badge } from "./AdminUI";
 import { useApp } from "../../lib/store";
 import { Modal } from "../../components/ui";
-import { categoryEmoji } from "../../lib/promptlab";
+import { CategoryGlyph, PromptToolGlyph } from "../../lib/entityIcons";
 import { toFa, uid, timeAgo } from "../../lib/utils";
 import type { PromptScenario, PromptTool } from "../../lib/types";
 
@@ -12,7 +12,7 @@ const TASK_TYPES = ["متن", "تصویر", "کد", "جدول", "تحلیل"] as
 const emptyTool = (): PromptTool => ({
   id: uid("pt"),
   name: "",
-  emoji: "🤖",
+  emoji: "",
   category: "عمومی",
   description: "",
   style: "",
@@ -116,7 +116,9 @@ export default function AdminPromptLab() {
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-lg">{categoryEmoji(s.category)}</span>
+                    <span className="text-lg">
+                      <CategoryGlyph cat={s.category} />
+                    </span>
                     <Badge tone="info">{s.taskType}</Badge>
                     <Badge tone="success">{toFa(s.toolIds.length)} ابزار</Badge>
                     <Badge tone="warn">{toFa(s.points)} امتیاز</Badge>
@@ -233,7 +235,9 @@ export default function AdminPromptLab() {
                       <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-4 py-3">
                         <div className="flex min-w-0 items-center gap-3">
                           <span className="text-lg">
-                            {categoryEmoji(a.scenarioTitle.includes("تصویر") ? "تصویر" : "نگارش")}
+                            <CategoryGlyph
+                              cat={a.scenarioTitle.includes("تصویر") ? "تصویر" : "نوشتار"}
+                            />
                           </span>
                           <div className="min-w-0">
                             <p className="truncate text-sm font-bold">{a.scenarioTitle}</p>
@@ -509,11 +513,11 @@ function ScenarioForm({
                 onClick={() => toggleTool(t.id)}
                 className={
                   on
-                    ? "flex items-center gap-1.5 rounded-lg border border-[#8B5CF6]/60 bg-[#8B5CF6]/10 px-3 py-2 text-xs font-bold text-text"
+                    ? "flex items-center gap-1.5 rounded-lg border border-[#7C3AED]/60 bg-[#7C3AED]/10 px-3 py-2 text-xs font-bold text-text"
                     : "flex items-center gap-1.5 rounded-lg border border-line/60 bg-surface2 px-3 py-2 text-xs text-muted"
                 }
               >
-                <span>{t.emoji}</span> {t.name}
+                <PromptToolGlyph id={t.id} /> {t.name}
               </button>
             );
           })}

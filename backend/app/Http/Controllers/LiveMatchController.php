@@ -92,6 +92,36 @@ class LiveMatchController extends Controller
         return response()->json(['match' => $this->serialize($match->refresh(), $request->user()->id)]);
     }
 
+    /** Host starts a rematch after the previous match finished: fresh questions, reset scores. */
+    public function rematch(Request $request, LiveMatch $match): JsonResponse
+    {
+        abort_unless($match->host_id === $request->user()->id, 403);
+        if ($match->status !== 'finished') {
+            return response()->json(['message' => 'فقط بعد از پایان مسابقه می‌توانید دوباره بازی کنید.'], 409);
+        }
+        $questions = $this->questionPool();
+        if (count($questions) < 3) {
+            return response()->json(['message' => 'هنوز سؤال کافی برای مسابقه ثبت نشده است.'], 422);
+        }
+
+        DB::transaction(function () use ($match, $questions) {
+            $match->update([
+                'status' => 'waiting',
+                'questions' => $questions,
+                'question_index' => 0,
+                'started_at' => null,
+                'finished_at' => null,
+                'question_started_at' => null,
+                'question_ends_at' => null,
+            ]);
+            foreach ($match->players as $player) {
+                $player->update(['answers' => [], 'score' => 0, 'correct_count' => 0, 'answered_count' => 0, 'rank' => null]);
+            }
+        });
+
+        return response()->json(['match' => $this->serialize($match->refresh(), $request->user()->id)]);
+    }
+
     /** Poll the live match state; auto-advances/finishes expired questions. */
     public function state(Request $request, LiveMatch $match): JsonResponse
     {
@@ -201,7 +231,13 @@ class LiveMatchController extends Controller
 
     private function finalize(LiveMatch $match): void
     {
-        $ranked = $match->players->sortByDesc('score')->values();
+        // Deterministic ranking: score desc, then correct answers desc, then
+        // earlier join (lower player id) wins — ties are never left to DB order.
+        $ranked = $match->players->sortBy([
+            ['score', 'desc'],
+            ['correct_count', 'desc'],
+            ['id', 'asc'],
+        ])->values();
         foreach ($ranked as $i => $player) {
             $player->update(['rank' => $i + 1]);
         }
@@ -226,9 +262,34 @@ class LiveMatchController extends Controller
 
         return [
             'id' => $match->id, 'mode' => $match->mode, 'maxPlayers' => $match->max_players, 'status' => $match->status,
-            'hostId' => $match->host_id, 'questions' => $match->questions, 'questionIndex' => (int) $match->question_index,
+            'hostId' => $match->host_id, 'questions' => $this->serializeQuestions($match, $viewerId), 'questionIndex' => (int) $match->question_index,
             'pointsPerQuestion' => (int) $match->points_per_question, 'secondsPerQuestion' => (int) $match->seconds_per_question,
             'questionEndsAt' => $match->question_ends_at?->toIso8601String(), 'players' => $players,
         ];
+    }
+
+    /**
+     * The answer key must never reach a client while the match is live — a
+     * player could read `correct` from the JSON and answer perfectly. It is
+     * stripped until the match finishes, then returned in full (plus the
+     * viewer's own pick per question) so the result screen can show a full
+     * review with explanations.
+     */
+    private function serializeQuestions(LiveMatch $match, string $viewerId): array
+    {
+        $questions = collect($match->questions ?? [])->values();
+
+        if ($match->status !== 'finished') {
+            return $questions
+                ->map(fn ($question) => collect($question)->only(['text', 'options'])->all())
+                ->all();
+        }
+
+        $mine = LiveMatchPlayer::where('match_id', $match->id)->where('user_id', $viewerId)->first();
+        $answers = collect($mine?->answers ?? [])->keyBy(fn ($a) => (int) ($a['index'] ?? -1));
+
+        return $questions
+            ->map(fn ($question, $i) => collect($question)->put('myAnswer', $answers->get($i)['answer'] ?? null)->all())
+            ->all();
     }
 }

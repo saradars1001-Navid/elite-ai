@@ -19,7 +19,10 @@ class CatalogController extends Controller
         // quizzes live in their own table (no chapter_id FK), so they are
         // fetched separately below; chapters only eager-load their lessons.
         $chapters = Chapter::with('lessons')->orderBy('index')->get();
-        $viewer = $request->user();
+        // The catalog is public, but a signed-in buyer must still be recognised
+        // so their paid chapters keep their lesson content. The optional route
+        // has no auth middleware, so the bearer token is resolved by hand here.
+        $viewer = $request->user() ?? auth('sanctum')->user();
         $paidChapterIds = $viewer ?
             Purchase::where('user_id', $viewer->id)->where('status', 'paid')->pluck('chapter_id')->flip()->toArray() : [];
         $quizzes = Quiz::with('questions')->where('status', 'published')->latest()->get();

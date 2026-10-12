@@ -11,16 +11,23 @@ export function AdminHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <span className="chip mb-3 border border-warn/25 bg-warn/10 text-warn">پنل مدیریت</span>
-        <h1 className="text-2xl font-black">{title}</h1>
-        {desc && <p className="mt-1.5 text-sm text-muted">{desc}</p>}
+        {/* phones get the screen name from the title bar, like the rest of the app */}
+        <div className="max-lg:hidden">
+          <span className="chip mb-3 border border-warn/25 bg-warn/10 text-warn">پنل مدیریت</span>
+          <h1 className="text-2xl font-black">{title}</h1>
+        </div>
+        {desc && <p className="mt-1.5 text-sm text-muted max-lg:mt-0">{desc}</p>}
       </div>
       {action}
     </div>
   );
 }
+
+/* Data tables and stat cards use the same Telegram grouped-row lists as the
+   rest of the app: a rounded surface group with hairline dividers between
+   rows, the value sitting at the end of the row. */
 
 export function StatCard({
   label,
@@ -36,40 +43,56 @@ export function StatCard({
   sub?: string;
 }) {
   return (
-    <div className="card p-5">
-      <div className="flex items-center justify-between">
-        <span className={cls("grid h-10 w-10 place-items-center rounded-lg", tone)}>
-          <Icon size={19} />
-        </span>
-        {sub && <span className="text-[11px] text-muted">{sub}</span>}
-      </div>
-      <p className="mt-3 text-2xl font-black">{value}</p>
-      <p className="mt-0.5 text-xs text-muted">{label}</p>
+    <div className="tg-row min-h-[64px]">
+      <span className={cls("tg-row-icon", tone)}>
+        <Icon size={19} />
+      </span>
+      <span className="tg-row-body">
+        <span className="tg-row-title">{label}</span>
+        {sub && <span className="tg-row-sub">{sub}</span>}
+      </span>
+      <span className="shrink-0 text-xl font-black text-text">{value}</span>
     </div>
   );
 }
 
+/** Grouped-row replacement for the old data table. The column captions live
+    in a quiet label only on desktop — Telegram lists don't need headers. */
 export function Table({ head, children }: { head: string[]; children: React.ReactNode }) {
   return (
-    <div className="card overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-right text-sm">
-          <thead>
-            <tr className="border-b border-line/60 bg-surface2/50">
-              {head.map((h) => (
-                <th key={h} className="px-4 py-3 text-xs font-bold text-muted">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line/40">{children}</tbody>
-        </table>
-      </div>
+    <>
+      {head.length > 0 && <p className="tg-group-title !hidden lg:!block">{head.join(" · ")}</p>}
+      <div className="tg-group overflow-hidden">{children}</div>
+    </>
+  );
+}
+
+/** One data row inside the group (was a table <tr>). Cells wrap naturally:
+    on wide screens they share the line, on phones the row flows to two. */
+export function TRow({
+  children,
+  className,
+  onClick,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  onClick?: () => void;
+}) {
+  return (
+    <div
+      onClick={onClick}
+      className={cls(
+        "relative flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-right transition-colors",
+        onClick && "cursor-pointer hover:bg-surface2/40",
+        className
+      )}
+    >
+      {children}
     </div>
   );
 }
 
+/** One cell of a TRow (was a table <td>). colSpan renders full-width. */
 export function Td({
   children,
   className,
@@ -82,9 +105,16 @@ export function Td({
   dir?: string;
 }) {
   return (
-    <td className={cls("px-4 py-3.5", className)} colSpan={colSpan} dir={dir}>
+    <div
+      className={cls(
+        "flex min-w-0 flex-1 flex-wrap items-center gap-2",
+        colSpan ? "w-full flex-[1_1_100%]" : "",
+        className
+      )}
+      dir={dir}
+    >
       {children}
-    </td>
+    </div>
   );
 }
 

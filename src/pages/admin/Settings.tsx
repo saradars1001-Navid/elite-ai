@@ -66,7 +66,7 @@ export default function AdminSettings() {
         desc="هویت برند، اطلاعات تماس، درگاه پرداخت، کدهای تخفیف و بانک سؤال"
         action={
           <button onClick={save} className="btn-primary btn-md">
-            <Save size={15} /> ذخیره {saved && "✓"}
+            <Save size={15} /> {saved ? "ذخیره شد ✓" : "ذخیره"}
           </button>
         }
       />

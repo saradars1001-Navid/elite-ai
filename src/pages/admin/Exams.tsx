@@ -1,8 +1,9 @@
+import { ChGlyph } from "../../lib/entityIcons";
 import { useState } from "react";
 import { ClipboardCheck, Save, BadgePercent, RotateCcw } from "lucide-react";
 import { DEFAULT_DISCOUNT_RULES, type DiscountRules } from "../../lib/data";
 import { useApp } from "../../lib/store";
-import { AdminHeader, Table, Td } from "./AdminUI";
+import { AdminHeader, Table, Td, TRow } from "./AdminUI";
 import { toFa } from "../../lib/utils";
 
 export default function AdminExams() {
@@ -39,7 +40,7 @@ export default function AdminExams() {
         desc="نمره قبولی آزمون‌ها و درصد تخفیف عملکردی — از اینجا قابل تغییر"
         action={
           <button onClick={saveAll} className="btn-primary btn-md">
-            <Save size={15} /> ذخیره {saved && "✓"}
+            <Save size={15} /> {saved ? "ذخیره شد ✓" : "ذخیره"}
           </button>
         }
       />
@@ -97,11 +98,11 @@ export default function AdminExams() {
       {/* exams table */}
       <Table head={["فصل", "عنوان آزمون", "سؤالات", "حداقل قبولی", "سؤال‌ها قابل ویرایش"]}>
         {chapters.map((c) => (
-          <tr key={c.id} className="transition-colors hover:bg-surface2/30">
+          <TRow key={c.id}>
             <Td>
               <div className="flex items-center gap-2.5">
-                <span className="grid h-9 w-9 place-items-center rounded-lg bg-navy text-lg">
-                  {c.icon}
+                <span className="grid h-9 w-9 place-items-center rounded-lg bg-navy">
+                  <ChGlyph id={c.id} size={17} />
                 </span>
                 <div>
                   <p className="font-bold">{c.title}</p>
@@ -123,7 +124,7 @@ export default function AdminExams() {
             <Td>
               <span className="text-xs text-muted">از صفحه «فصل‌ها و درس‌ها» → تب آزمون</span>
             </Td>
-          </tr>
+          </TRow>
         ))}
       </Table>
 

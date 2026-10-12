@@ -24,8 +24,8 @@ class IDPayGateway implements PaymentGateway
 
     public function __construct()
     {
-        $this->apiKey = (string) env('IDPAY_API_KEY', '');
-        $this->sandbox = (bool) env('IDPAY_SANDBOX', false);
+        $this->apiKey = (string) config('services.idpay.api_key', '');
+        $this->sandbox = filter_var(config('services.idpay.sandbox', false), FILTER_VALIDATE_BOOL);
     }
 
     private function headers(): array
@@ -121,12 +121,12 @@ class IDPayGateway implements PaymentGateway
     public function verifyWebhookSignature(Request $request): bool
     {
         // IDPay v1.1 does not sign webhooks itself; opt in to HMAC verification
-        // with IDPAY_WEBHOOK_SECRET (or the global WEBHOOK_HMAC_SECRET) when a
+        // with services.idpay.webhook_secret (or payment.hmac.secret) when a
         // shared secret is configured. Without a secret the check is skipped and
         // security stays with the server-to-server re-verification.
-        $secret = (string) env('IDPAY_WEBHOOK_SECRET', env('WEBHOOK_HMAC_SECRET', ''));
-        $header = (string) env('WEBHOOK_HMAC_HEADER', 'X-Signature');
-        $algo = (string) env('WEBHOOK_HMAC_ALGO', 'sha256');
+        $secret = (string) (config('services.idpay.webhook_secret', '') ?: config('payment.hmac.secret', ''));
+        $header = (string) config('payment.hmac.header', 'X-Signature');
+        $algo = (string) config('payment.hmac.algo', 'sha256');
 
         return WebhookSignature::verify($request, $secret, $header, $algo);
     }

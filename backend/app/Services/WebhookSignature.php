@@ -13,9 +13,10 @@ use Illuminate\Http\Request;
  *
  *   signature = hash_hmac(algo, rawBody, secret)
  *
- * Configuration is read from env so any gateway can opt in without code
- * changes. An empty secret disables the check (gateways without signatures
- * remain protected by the server-to-server re-verification in the controller).
+ * Configuration is read from config (payment.hmac.*) so any gateway can opt
+ * in without code changes. An empty secret disables the check (gateways without
+ * signatures remain protected by the server-to-server re-verification in the
+ * controller).
  */
 final class WebhookSignature
 {
@@ -25,7 +26,7 @@ final class WebhookSignature
         string $header = 'X-Signature',
         string $algo = 'sha256'
     ): bool {
-        $secret = $secret ?? (string) env('WEBHOOK_HMAC_SECRET', '');
+        $secret = $secret ?? (string) config('payment.hmac.secret', '');
         if ($secret === '') {
             return true;
         } // not configured — skip

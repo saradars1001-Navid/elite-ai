@@ -26,7 +26,7 @@ const TYPE_META: Record<
 > = {
   chapter: { label: "فصل جدید", icon: BookOpen, color: "text-sky bg-sky/10" },
   lesson: { label: "به‌روزرسانی درس", icon: RefreshCw, color: "text-sky bg-sky/10" },
-  quiz: { label: "کوییز", icon: Gamepad2, color: "text-[#8B5CF6] bg-[#8B5CF6]/10" },
+  quiz: { label: "کوییز", icon: Gamepad2, color: "text-[#7C3AED] bg-[#7C3AED]/10" },
   discount: { label: "تخفیف", icon: BadgePercent, color: "text-teal bg-teal/10" },
   exam: { label: "نتیجه آزمون", icon: ClipboardCheck, color: "text-warn bg-warn/10" },
   badge: { label: "نشان", icon: Award, color: "text-warn bg-warn/10" },
@@ -52,38 +52,30 @@ export default function Notifications() {
   const filters = ["همه", "خوانده‌نشده", "فصل جدید", "کوییز", "تخفیف", "نتیجه آزمون", "کامیونیتی"];
 
   return (
-    <div className="container-x max-w-3xl py-10 sm:py-14">
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <span className="chip mb-3 border border-neon/25 bg-neon/10 text-sky">اعلان‌ها</span>
-          <h1 className="text-2xl font-black sm:text-3xl">اعلان‌ها</h1>
-          <p className="mt-2 text-sm text-muted">
-            {unreadCount > 0
-              ? `${toFa(unreadCount)} اعلان خوانده‌نشده دارید`
-              : "همه اعلان‌ها را خوانده‌اید"}
+    <div className="mx-auto w-full max-w-[720px] px-4 py-4">
+      <header className="flex items-end justify-between gap-3 pb-3">
+        <div className="min-w-0">
+          <h1 className="text-[22px] font-semibold leading-8 max-lg:hidden">اعلان‌ها</h1>
+          <p className="mt-1 text-[13px] text-muted">
+            {unreadCount > 0 ? `${toFa(unreadCount)} اعلان خوانده‌نشده` : "همه را خوانده‌اید"}
           </p>
         </div>
         <button
           onClick={markAllRead}
           disabled={unreadCount === 0}
-          className={cls("btn-secondary btn-md", unreadCount === 0 && "opacity-50")}
+          className="btn-secondary btn-sm shrink-0"
         >
-          <CheckCheck size={16} /> علامت‌گذاری همه به‌عنوان خوانده‌شده
+          <CheckCheck size={15} /> خواندن همه
         </button>
-      </div>
+      </header>
 
       {/* filters */}
-      <div className="no-scrollbar mb-6 flex gap-1.5 overflow-x-auto pb-1">
+      <div className="tg-tabs -mx-4">
         {filters.map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={cls(
-              "shrink-0 rounded-lg border px-3.5 py-2 text-xs font-medium transition-colors",
-              filter === f
-                ? "border-neon/50 bg-neon/15 text-sky"
-                : "border-line/60 bg-surface text-muted hover:text-text"
-            )}
+            className={cls("tg-tab-item", filter === f && "active")}
           >
             {f}
           </button>
@@ -97,7 +89,7 @@ export default function Notifications() {
           text="در این دسته اعلانی ندارید. فعالیت‌های جدید شما اینجا نمایش داده می‌شوند."
         />
       ) : (
-        <div className="space-y-2.5">
+        <div className="tg-group mt-3 max-lg:-mx-1 lg:rounded-xl lg:shadow-card">
           {list.map((n) => {
             const meta = TYPE_META[n.type];
             return (
@@ -107,32 +99,29 @@ export default function Notifications() {
                   markOneRead(n.id);
                   setDetail(n);
                 }}
-                className={cls(
-                  "flex w-full items-start gap-3.5 rounded-lg border p-4 text-right transition-colors hover:border-neon/40",
-                  n.read ? "border-line/40 bg-surface/60" : "border-neon/25 bg-surface"
-                )}
+                className="tg-row items-start"
               >
                 <span
                   className={cls(
-                    "mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-lg",
+                    "grid h-10 w-10 shrink-0 place-items-center rounded-full",
                     meta.color
                   )}
                 >
-                  <meta.icon size={17} />
+                  <meta.icon size={18} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap items-center gap-2">
-                    {!n.read && <span className="h-2 w-2 rounded-full bg-neon" aria-hidden />}
-                    <span className={cls("text-sm font-bold", n.read ? "text-muted" : "text-text")}>
-                      {n.title}
-                    </span>
+                  <span className="flex items-center gap-1.5">
+                    {!n.read && (
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-neon" aria-hidden />
+                    )}
+                    <span className={cls("tg-row-title", n.read && "text-muted")}>{n.title}</span>
                   </span>
-                  <span className="mt-1 block text-xs leading-6 text-muted">{n.body}</span>
-                  <span className="mt-1.5 block text-[11px] text-locked">
+                  <span className="tg-row-sub">{n.body}</span>
+                  <span className="mt-0.5 block text-[11px] text-locked">
                     {timeAgo(n.createdAt)}
                   </span>
                 </span>
-                <ChevronLeft size={16} className="mt-2 shrink-0 text-locked" />
+                <ChevronLeft size={16} className="mt-1 shrink-0 text-locked" />
               </button>
             );
           })}

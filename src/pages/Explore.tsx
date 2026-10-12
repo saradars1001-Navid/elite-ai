@@ -32,15 +32,17 @@ export default function Explore() {
   }
 
   return (
-    <div className="bg-base">
-      <div className="container-x py-6 sm:py-8">
-        <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+    <div className="bg-page">
+      <div className="container-x py-6 pb-[calc(6.5rem+env(safe-area-inset-bottom))] sm:py-8 lg:pb-8">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <span className="chip mb-2 border border-neon/25 bg-neon/10 text-sky">
-              <Sparkles size={13} /> اکسپلور AI
-            </span>
-            <h1 className="text-2xl font-black sm:text-3xl">ویدئوهای کوتاه هوش مصنوعی</h1>
-            <p className="mt-2 text-sm text-muted">
+            <div className="max-lg:hidden">
+              <span className="chip mb-2 border border-neon/25 bg-neon/10 text-sky">
+                <Sparkles size={13} /> اکسپلور AI
+              </span>
+              <h1 className="text-2xl font-black sm:text-3xl">ویدئوهای کوتاه هوش مصنوعی</h1>
+            </div>
+            <p className="mt-2 text-sm text-muted max-lg:mt-0">
               اسکرول کن، ایده بگیر و مهارت بعدی‌ات را پیدا کن.
             </p>
           </div>
@@ -48,17 +50,12 @@ export default function Explore() {
             ترند پرامپت‌ها <Sparkles size={15} />
           </Link>
         </div>
-        <div className="no-scrollbar mb-5 flex gap-2 overflow-x-auto pb-1">
+        <div className="tg-tabs -mx-4 mb-1">
           {categories.map((c) => (
             <button
               key={c}
               onClick={() => setCategory(c)}
-              className={cls(
-                "chip shrink-0 border px-4 py-2",
-                category === c
-                  ? "border-neon/50 bg-neon/15 text-sky"
-                  : "border-line/60 bg-surface text-muted"
-              )}
+              className={cls("tg-tab-item", category === c && "active")}
             >
               {c}
             </button>
@@ -85,21 +82,50 @@ export default function Explore() {
               />
             ))}
           </div>
-          <aside className="hidden space-y-4 lg:block">
-            <div className="card p-5">
-              <h2 className="flex items-center gap-2 font-bold">
-                <PlaySquare size={18} className="text-neon" /> راهنمای اکسپلور
-              </h2>
-              <ul className="mt-4 space-y-3 text-sm leading-7 text-muted">
-                <li>• برای رفتن به ویدئوی بعدی اسکرول کن.</li>
-                <li>• ویدئوها از پنل مدیریت قابل انتشار، آرشیو و ویرایش هستند.</li>
-                <li>• برای ایده‌های قابل کپی، بخش ترند پرامپت‌ها را ببین.</li>
-              </ul>
+          <aside className="hidden lg:block">
+            <p className="tg-group-title">راهنمای اکسپلور</p>
+            <div className="tg-group">
+              <div className="tg-row items-start">
+                <span className="tg-row-icon">
+                  <PlaySquare size={18} />
+                </span>
+                <span className="tg-row-body">
+                  <span className="tg-row-sub">برای رفتن به ویدئوی بعدی اسکرول کن.</span>
+                </span>
+              </div>
+              <div className="tg-row items-start">
+                <span className="tg-row-icon">
+                  <Sparkles size={18} />
+                </span>
+                <span className="tg-row-body">
+                  <span className="tg-row-sub">
+                    ویدئوها از پنل مدیریت قابل انتشار، آرشیو و ویرایش هستند.
+                  </span>
+                </span>
+              </div>
+              <Link to="/prompt-trends" className="tg-row">
+                <span className="tg-row-icon">
+                  <Sparkles size={18} />
+                </span>
+                <span className="tg-row-body">
+                  <span className="tg-row-title">ترند پرامپت‌ها</span>
+                  <span className="tg-row-sub">ایده‌های آماده برای کپی و تمرین</span>
+                </span>
+              </Link>
             </div>
-            <div className="card border-neon/20 bg-neon/5 p-5">
-              <p className="text-xs font-bold text-sky">کتابخانه زنده</p>
-              <p className="mt-2 text-2xl font-black">{toFa(visible.length)}</p>
-              <p className="mt-1 text-xs text-muted">ویدئوی منتشرشده در این دسته</p>
+            <p className="tg-group-title">کتابخانه</p>
+            <div className="tg-group">
+              <div className="tg-row">
+                <span className="tg-row-icon">
+                  <PlaySquare size={18} />
+                </span>
+                <span className="tg-row-body">
+                  <span className="tg-row-title">ویدئوی منتشرشده در این دسته</span>
+                </span>
+                <span className="tg-row-value text-lg font-black text-text">
+                  {toFa(visible.length)}
+                </span>
+              </div>
             </div>
           </aside>
         </div>

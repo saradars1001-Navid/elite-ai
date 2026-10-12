@@ -74,7 +74,7 @@ export default function PaymentStatus() {
             <span className="chip mb-3 border border-teal/25 bg-teal/10 text-teal">
               پرداخت موفق
             </span>
-            <h1 className="text-2xl font-black">دسترسی شما فعال شد 🎉</h1>
+            <h1 className="text-2xl font-black">دسترسی شما فعال شد</h1>
             <p className="mt-2 text-sm leading-7 text-muted">
               خرید فصل «{record?.chapterTitle || ch?.title || "..."}» با موفقیت ثبت شد و دسترسی آنی
               است.

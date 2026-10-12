@@ -4,37 +4,133 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================================================
+   THEME TOKENS — light (default) and Telegram-style night
+   Both themes share one set of names. Every palette value lives in a custom
+   property as an RGB triplet, so the Tailwind tokens (`bg-page`,
+   `text-muted`, …) keep working with alpha modifiers and the whole app flips
+   when `data-theme="dark"` is set on <html>.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* palette — mirrors the Tailwind color tokens */
+  --c-page: 239 239 244; /* #EFEFF4 grouped page background */
+  --c-surface: 255 255 255; /* #FFFFFF bars, cards, sheets */
+  --c-surface2: 241 241 242; /* #F1F1F2 subtle fills, pressed rows */
+  --c-navy: 233 233 238; /* #E9E9EE tinted band */
+  --c-neon: 51 144 236; /* #3390EC the single accent */
+  --c-sky: 42 127 212; /* #2A7FD4 accent text */
+  --c-teal: 46 168 67; /* #2EA843 success */
+  --c-text: 15 15 15; /* #0F0F0F */
+  --c-muted: 112 117 121; /* #707579 */
+  --c-line: 228 228 230; /* #E4E4E6 */
+  --c-locked: 162 172 180; /* #A2ACB4 */
+  --c-danger: 229 72 77; /* #E5484D */
+  --c-warn: 183 121 31; /* #B7791F */
+
+  /* component colors that used to be hardcoded in this file */
+  --c-hairline: 237 237 240; /* separators inside a tg-group */
+  --c-pane: 255 255 255; /* translucent bar base (header, tab bar) */
+  --c-pane-alpha: 0.8;
+  --c-pane-line: 15 15 15; /* hairline under a translucent bar */
+  --c-pane-line-alpha: 0.05;
+  --c-tabbar-alpha: 0.78;
+  --c-tabbar-line-alpha: 0.06;
+  --c-neon-press: 36 129 204; /* primary button hover */
+  --c-neon-press-2: 31 116 184; /* primary button active */
+  --c-selection: 42 171 238;
+  --c-selection-text: 18 22 28;
+  --c-focus: 42 171 238;
+  --shimmer: 16 24 40; /* skeleton sweep */
+  --shimmer-alpha: 0.06;
+  --scroll-track: 236 236 240;
+  --scroll-thumb: 211 215 221;
+  --scroll-thumb-hover: 185 191 200;
+
+  /* elevation */
+  --shadow-glow: 0 6px 22px rgba(42, 171, 238, 0.28);
+  --shadow-glow-sm: 0 2px 10px rgba(42, 171, 238, 0.22);
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
+  --shadow-bar: 0 -1px 0 rgba(16, 24, 40, 0.06);
+  --shadow-float: 0 12px 34px rgba(16, 24, 40, 0.16), 0 2px 8px rgba(16, 24, 40, 0.08);
+}
+
+/* ── Telegram night ─────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --c-page: 14 22 33; /* #0E1621 */
+  --c-surface: 23 33 43; /* #17212B */
+  --c-surface2: 35 46 60; /* #232E3C */
+  --c-navy: 28 39 51; /* #1C2733 */
+  --c-neon: 79 174 238; /* #4FAEEE */
+  --c-sky: 92 174 245; /* #5CAEF5 */
+  --c-teal: 76 199 102; /* #4CC766 */
+  --c-text: 255 255 255;
+  --c-muted: 125 133 144; /* #7D8590 */
+  --c-line: 30 42 54; /* #1E2A36 */
+  --c-locked: 109 123 137; /* #6D7B89 */
+  --c-danger: 229 72 77;
+  --c-warn: 232 179 57; /* #E8B339 */
+
+  --c-hairline: 31 42 53; /* #1F2A35 */
+  --c-pane: 23 33 43;
+  --c-pane-alpha: 0.82;
+  --c-pane-line: 255 255 255;
+  --c-pane-line-alpha: 0.07;
+  --c-tabbar-alpha: 0.8;
+  --c-tabbar-line-alpha: 0.09;
+  --c-neon-press: 64 150 214;
+  --c-neon-press-2: 58 138 197;
+  --c-selection: 79 174 238;
+  --c-selection-text: 255 255 255;
+  --c-focus: 79 174 238;
+  --shimmer: 255 255 255;
+  --shimmer-alpha: 0.07;
+  --scroll-track: 14 22 33;
+  --scroll-thumb: 43 57 71;
+  --scroll-thumb-hover: 58 76 95;
+
+  --shadow-glow: 0 6px 22px rgba(79, 174, 238, 0.3);
+  --shadow-glow-sm: 0 2px 10px rgba(79, 174, 238, 0.25);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-bar: 0 -1px 0 rgba(0, 0, 0, 0.4);
+  --shadow-float: 0 12px 34px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
   }
   body {
-    @apply bg-base text-text font-sans antialiased;
+    @apply bg-page text-text font-sans antialiased;
     text-rendering: optimizeLegibility;
   }
   ::selection {
-    background: rgba(47, 140, 255, 0.35);
-    color: #fff;
+    background: rgb(var(--c-selection) / 0.24);
+    color: rgb(var(--c-selection-text));
   }
   *:focus-visible {
-    outline: 2px solid rgba(87, 184, 255, 0.85);
+    outline: 2px solid rgb(var(--c-focus) / 0.7);
     outline-offset: 2px;
-    border-radius: 6px;
+    border-radius: 8px;
   }
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
   }
   ::-webkit-scrollbar-track {
-    background: #070b14;
+    background: rgb(var(--scroll-track));
   }
   ::-webkit-scrollbar-thumb {
-    background: #223149;
+    background: rgb(var(--scroll-thumb));
     border-radius: 8px;
-    border: 2px solid #070b14;
+    border: 2px solid rgb(var(--scroll-track));
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #2f3f5e;
+    background: rgb(var(--scroll-thumb-hover));
   }
   input[type="number"]::-webkit-outer-spin-button,
   input[type="number"]::-webkit-inner-spin-button {
@@ -57,10 +153,10 @@
     transform: scale(0.98);
   }
   .btn-primary {
-    @apply btn bg-neon text-white shadow-glow-sm hover:bg-[#3f97ff] hover:shadow-glow;
+    @apply btn bg-neon text-white shadow-glow-sm hover:bg-[rgb(var(--c-neon-press))] hover:shadow-glow;
   }
   .btn-secondary {
-    @apply btn border border-line bg-surface2 text-text hover:border-neon/50 hover:bg-[#182642];
+    @apply btn border border-line bg-surface2 text-text hover:border-neon/50 hover:bg-[rgb(var(--c-navy))];
   }
   .btn-ghost {
     @apply btn text-muted hover:bg-surface2 hover:text-text;
@@ -124,10 +220,29 @@
     background-clip: text;
     -webkit-text-fill-color: transparent;
   }
+  /* soft glass surfaces (dark) */
+  .glass {
+    @apply border border-line/50 bg-surface/70 backdrop-blur-xl;
+  }
+  .glass-strong {
+    @apply border border-line/60 bg-surface/90 backdrop-blur-xl;
+  }
+  .float-soft {
+    animation: floatSoft 3.4s ease-in-out infinite;
+  }
+  @keyframes floatSoft {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
   .bg-grid {
     background-image:
-      linear-gradient(rgba(47, 140, 255, 0.05) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(47, 140, 255, 0.05) 1px, transparent 1px);
+      linear-gradient(rgba(42, 171, 238, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(42, 171, 238, 0.08) 1px, transparent 1px);
     background-size: 42px 42px;
   }
   .skeleton {
@@ -136,7 +251,12 @@
   .skeleton::after {
     content: "";
     @apply absolute inset-0;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgb(var(--shimmer) / var(--shimmer-alpha)),
+      transparent
+    );
     background-size: 200% 100%;
     animation: shimmer 1.6s linear infinite;
   }
@@ -146,5 +266,514 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+}
+
+/* ==========================================================================
+   APP-LIKE LAYER (additive, uses the project's own dark palette)
+   Pill shapes, softer radii, frosted surfaces and mobile app-shell helpers.
+   Nothing here removes or overrides an existing app class — it only refines
+   the shape language so the site feels like a native application.
+   ========================================================================== */
+
+@layer components {
+  /* ── Telegram / Eita shape language ──
+     Rounded rectangles, never capsules. Buttons 10px, surfaces 12px,
+     fields 10px; only small tags stay pill-shaped. */
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost,
+  .btn-danger,
+  .btn-success,
+  .btn-warn {
+    border-radius: 0.75rem;
+  }
+  .card {
+    border-radius: 1rem;
+  }
+  .input,
+  .input-textarea {
+    border-radius: 0.75rem;
+  }
+  .chip {
+    border-radius: 9999px;
+  }
+  /* flat, quiet buttons — no gradients, no lift, only a shade change */
+  .btn-primary {
+    @apply bg-neon text-white shadow-none hover:bg-[rgb(var(--c-neon-press))] active:bg-[rgb(var(--c-neon-press-2))];
+  }
+  .btn-secondary {
+    @apply bg-neon/10 text-sky shadow-none hover:bg-neon/20 active:bg-neon/25;
+  }
+  .btn-ghost {
+    @apply text-sky shadow-none hover:bg-surface2 active:bg-surface2;
+  }
+  .btn-danger {
+    @apply bg-danger/10 text-danger shadow-none hover:bg-danger/20;
+  }
+  .btn-success {
+    @apply bg-teal/10 text-teal shadow-none hover:bg-teal/20;
+  }
+  .btn-warn {
+    @apply bg-warn/10 text-warn shadow-none hover:bg-warn/20;
+  }
+  .btn-icon {
+    @apply rounded-full;
+  }
+
+  /* ── page head ── */
+  .page-head {
+    @apply flex flex-col gap-3 pb-4 sm:flex-row sm:items-end sm:justify-between;
+  }
+  .page-title {
+    @apply text-2xl font-bold leading-tight sm:text-3xl;
+  }
+  .page-sub {
+    @apply mt-1 text-sm text-muted;
+  }
+  .page-body {
+    @apply py-8;
+  }
+  .section-label {
+    @apply inline-flex items-center gap-2 rounded-full border border-neon/25 bg-neon/10 px-3.5 py-1 text-[11px] font-semibold text-sky;
+  }
+
+  /* ── icon button ── */
+  .btn-icon {
+    @apply btn grid h-10 w-10 place-items-center rounded-full border border-line/60 bg-surface2 text-muted transition-colors hover:border-neon/40 hover:text-sky;
+  }
+
+  /* ── inputs ── */
+  .input-textarea {
+    @apply input min-h-[120px] resize-y;
+  }
+  .input-error {
+    @apply !border-danger/70 ring-2 ring-danger/25;
+  }
+  .input-counter {
+    @apply mt-1.5 flex justify-end text-[11px] font-medium text-locked;
+  }
+
+  /* ── badges ── */
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold;
+  }
+  .badge-primary {
+    @apply badge border border-neon/30 bg-neon/10 text-sky;
+  }
+  .badge-teal {
+    @apply badge border border-teal/30 bg-teal/10 text-teal;
+  }
+  .badge-warn {
+    @apply badge border border-warn/30 bg-warn/10 text-warn;
+  }
+  .badge-num {
+    @apply grid h-5 w-5 place-items-center rounded-full bg-neon text-xs font-bold text-white;
+  }
+
+  /* ── switch / checkbox / radio ── */
+  .switch {
+    @apply relative inline-flex h-7 w-11 cursor-pointer items-center rounded-full border border-line/60 bg-surface2 p-0.5 transition-colors;
+  }
+  .switch input {
+    @apply absolute h-full w-full cursor-pointer appearance-none opacity-0;
+  }
+  .switch .track {
+    @apply h-6 w-full rounded-full bg-surface transition-all duration-200;
+  }
+  .switch .thumb {
+    @apply block h-5 w-5 rounded-full bg-locked transition-transform duration-200;
+  }
+  .switch input:checked ~ .track {
+    @apply bg-neon/40;
+  }
+  .switch input:checked ~ .track .thumb {
+    @apply bg-sky;
+    transform: translateX(-1.375rem);
+  }
+
+  .checkbox {
+    @apply inline-flex cursor-pointer select-none items-center gap-2 text-sm text-text;
+  }
+  .checkbox input {
+    @apply h-5 w-5 appearance-none rounded-md border border-line/60 bg-surface2 transition-colors;
+  }
+  .checkbox input:checked {
+    @apply border-neon bg-neon;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 14px;
+  }
+
+  .radio {
+    @apply inline-flex cursor-pointer select-none items-center gap-2 text-sm text-text;
+  }
+  .radio input {
+    @apply h-5 w-5 appearance-none rounded-full border border-line/60 bg-surface2 transition-colors;
+  }
+  .radio input:checked {
+    @apply border-neon bg-neon;
+    background: radial-gradient(circle at center, #ffffff 30%, transparent 31%);
+    background-size: 17px 17px;
+    background-repeat: no-repeat;
+    background-position: center;
+  }
+
+  /* ── slider ── */
+  .slider {
+    @apply relative h-2 w-full cursor-pointer appearance-none rounded-full bg-surface2;
+  }
+  .slider::-webkit-slider-thumb {
+    @apply h-4 w-4 cursor-pointer appearance-none rounded-full border-2 border-surface bg-sky shadow-glow-sm;
+  }
+  .slider::-moz-range-thumb {
+    @apply h-4 w-4 cursor-pointer rounded-full border-2 border-surface bg-sky shadow-glow-sm;
+  }
+
+  /* ── segmented control ── */
+  .segmented {
+    @apply inline-flex items-center gap-1 rounded-full border border-line/60 bg-surface2 p-1;
+  }
+  .segmented button {
+    @apply cursor-pointer rounded-full px-4 py-1.5 text-sm font-medium transition-all;
+  }
+  .segmented button.active {
+    @apply bg-neon font-semibold text-white;
+  }
+  .segmented button:not(.active) {
+    @apply text-muted hover:text-text;
+  }
+
+  /* ── progress ── */
+  .progress {
+    @apply relative h-2.5 w-full overflow-hidden rounded-full bg-surface2;
+  }
+  .progress .track {
+    @apply h-full rounded-full bg-gradient-to-l from-neon to-teal transition-all duration-700;
+  }
+  .progress-text {
+    @apply absolute inset-0 flex items-center justify-end gap-2 px-3 text-xs font-semibold text-text;
+  }
+
+  /* ── card extras ── */
+  .card-image {
+    @apply relative overflow-hidden rounded-t-2xl bg-surface2;
+  }
+  .card-title {
+    @apply mt-3 text-base font-bold;
+  }
+  .card-text {
+    @apply mt-1 text-sm text-muted;
+  }
+  .card-bottom {
+    @apply mt-3 flex items-center justify-between border-t border-line/40 pt-3;
+  }
+
+  /* ── stepper ── */
+  .stepper {
+    @apply flex items-center gap-2;
+  }
+  .step {
+    @apply flex flex-col items-center gap-1.5 text-[11px] font-medium text-muted;
+  }
+  .step-circle {
+    @apply grid h-8 w-8 place-items-center rounded-full border-2 border-line bg-surface2 text-text;
+  }
+  .step.active .step-circle {
+    @apply border-neon bg-neon text-white;
+  }
+  .step.done .step-circle {
+    @apply border-teal bg-teal/15 text-teal;
+  }
+  .step-line {
+    @apply h-0.5 flex-1 rounded bg-line/60;
+  }
+
+  /* ── icon grid ── */
+  .icon-grid {
+    @apply grid grid-cols-3 gap-3 sm:gap-4;
+  }
+  .icon-cell {
+    @apply flex flex-col items-center gap-1.5 rounded-xl border border-line/50 bg-surface2/60 p-3 text-center transition-colors hover:border-neon/40;
+  }
+  .icon-cell svg {
+    @apply h-6 w-6 text-sky;
+  }
+  .icon-cell span {
+    @apply text-[11px] font-medium text-muted;
+  }
+
+  /* ── stat row ── */
+  .stat-row {
+    @apply flex items-center justify-between py-2;
+  }
+  .stat-dot {
+    @apply h-2 w-2 rounded-full;
+  }
+
+  /* ── app-shell mobile bottom bar (style hook) ── */
+  .app-bottom-bar {
+    @apply fixed inset-x-0 bottom-0 z-50 border-t border-line bg-surface/95 backdrop-blur-xl lg:hidden;
+  }
+}
+
+/* ==========================================================================
+   TELEGRAM-STYLE PRIMITIVES
+   The app's information is grouped into white surfaces separated by hairlines
+   instead of a grid of boxed cards. Rows are compact, tappable and carry the
+   hierarchy themselves — no decoration is added to make a row feel important.
+   ========================================================================== */
+
+@layer components {
+  /* ── page frame ── */
+  .tg-page {
+    @apply mx-auto w-full max-w-[720px] px-0 pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:pb-10;
+  }
+
+  /* ── compact sticky header — translucent pane, content scrolls under it ── */
+  .tg-header {
+    @apply sticky top-0 z-40;
+    background: rgb(var(--c-pane) / var(--c-pane-alpha));
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid rgb(var(--c-pane-line) / var(--c-pane-line-alpha));
+  }
+  .tg-header-row {
+    @apply flex h-14 items-center gap-2 px-3;
+  }
+  .tg-title {
+    @apply truncate text-[17px] font-semibold leading-6 text-text;
+  }
+  .tg-subtitle {
+    @apply truncate text-[13px] leading-5 text-muted;
+  }
+
+  /* ── grouped list ── */
+  .tg-group-title {
+    @apply px-4 pb-1.5 pt-5 text-[13px] font-medium text-muted;
+  }
+  /* rounded white card — the page grey shows around it, like Telegram's lists */
+  .tg-group {
+    @apply relative overflow-hidden bg-surface;
+    border-radius: 1.125rem;
+  }
+  .tg-group + .tg-group {
+    @apply mt-0;
+  }
+  /* hairline between rows, inset past the row icon like Telegram's lists */
+  .tg-group > * + * {
+    position: relative;
+  }
+  .tg-group > * + *::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    inset-inline: 0;
+    height: 1px;
+    background: rgb(var(--c-hairline));
+  }
+  .tg-group > * + .tg-row:has(> .tg-row-icon)::before {
+    inset-inline-start: 4rem;
+  }
+  /* on phones every group becomes an inset card; on desktop the page frame does it */
+  @media (max-width: 1023px) {
+    .tg-group-title {
+      @apply mx-3;
+    }
+    .tg-group {
+      margin-inline: 12px;
+    }
+  }
+  @media (min-width: 1024px) {
+    .tg-group {
+      border-radius: 0.75rem;
+      @apply shadow-card;
+    }
+  }
+
+  /* ── list row ── */
+  .tg-row {
+    @apply flex min-h-[56px] w-full items-center gap-3 px-4 py-2.5 text-right transition-colors;
+  }
+  a.tg-row:hover,
+  button.tg-row:hover {
+    @apply bg-surface2;
+  }
+  button.tg-row,
+  a.tg-row {
+    @apply cursor-pointer;
+  }
+  .tg-row-icon {
+    @apply grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface2 text-muted;
+  }
+  .tg-row-body {
+    @apply min-w-0 flex-1;
+  }
+  .tg-row-title {
+    @apply block truncate text-[16px] font-medium leading-6 text-text;
+  }
+  .tg-row-sub {
+    @apply block truncate text-[13.5px] leading-5 text-muted;
+  }
+  .tg-row-value {
+    @apply shrink-0 text-[13px] tabular-nums text-muted;
+  }
+
+  /* ── thin inline progress rail (carries real progress, not decoration) ── */
+  .tg-rail {
+    @apply mt-1.5 h-[3px] w-full overflow-hidden rounded-full bg-surface2;
+  }
+  .tg-rail > span {
+    @apply block h-full rounded-full bg-neon transition-all duration-500;
+  }
+
+  /* ── badge ── */
+  .tg-badge {
+    @apply inline-grid h-5 min-w-[20px] shrink-0 place-items-center rounded-full bg-neon px-1.5 text-[11px] font-semibold leading-none text-white;
+  }
+  .tg-badge-quiet {
+    @apply inline-grid h-5 min-w-[20px] shrink-0 place-items-center rounded-full bg-surface2 px-1.5 text-[11px] font-semibold leading-none text-muted;
+  }
+
+  /* ── floating bottom bar — Telegram's translucent, detached pill ── */
+  .tg-tabbar {
+    position: fixed;
+    z-index: 50;
+    inset-inline: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    border-radius: 1.5rem;
+    background: rgb(var(--c-pane) / var(--c-tabbar-alpha));
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgb(var(--c-pane-line) / var(--c-tabbar-line-alpha));
+    box-shadow: var(--shadow-float);
+  }
+  .tg-tabbar-inner {
+    @apply mx-auto grid w-full grid-cols-5 px-1.5 py-1.5;
+  }
+  .tg-tab {
+    @apply flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] font-medium leading-none text-locked transition-colors;
+  }
+  /* Material/Eita-style tinted pill behind the active icon */
+  .tg-tab-icon {
+    @apply grid h-7 w-12 place-items-center rounded-full transition-all duration-200 ease-out;
+  }
+  .tg-tab.active {
+    @apply font-semibold text-neon;
+  }
+  .tg-tab.active .tg-tab-icon {
+    @apply bg-neon/15;
+  }
+  .tg-tab:active .tg-tab-icon {
+    @apply bg-surface2;
+  }
+  .tg-tab-label {
+    @apply flex items-center gap-1;
+  }
+
+  /* ── Telegram-style underline tabs ── */
+  .tg-tabs {
+    @apply no-scrollbar flex gap-1 overflow-x-auto border-b border-line bg-surface px-2;
+  }
+  .tg-tab-item {
+    @apply relative shrink-0 px-3.5 py-3 text-sm font-medium text-muted transition-colors;
+  }
+  .tg-tab-item:hover {
+    @apply text-text;
+  }
+  .tg-tab-item.active {
+    @apply text-sky;
+  }
+  .tg-tab-item::after {
+    content: "";
+    @apply absolute inset-x-2.5 bottom-0 h-[2px] rounded-full bg-neon;
+    transform: scaleX(0);
+    transition: transform 0.22s cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+  .tg-tab-item.active::after {
+    transform: scaleX(1);
+  }
+
+  /* ── bottom sheet (mobile dialog) ── */
+  .tg-sheet-grip {
+    @apply mx-auto mt-2 h-1 w-9 rounded-full bg-line;
+  }
+
+  /* ── flat list surface used by pages ── */
+  .tg-page-list {
+    @apply mx-auto w-full max-w-[720px];
+  }
+}
+
+/* ==========================================================================
+   TOUCH & MOTION
+   Native-feeling press feedback: no grey tap flash, no 300ms delay, an ink
+   ripple where the finger lands, and a short page enter. Everything here is
+   disabled under `prefers-reduced-motion`.
+   ========================================================================== */
+
+@layer base {
+  button,
+  a,
+  .tg-row,
+  .tg-tab,
+  .tg-tab-item,
+  [data-ripple] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+}
+
+@layer utilities {
+  /* the ink bubble injected by useGlobalRipple() */
+  .ripple-ink {
+    position: absolute;
+    z-index: 0;
+    border-radius: 9999px;
+    background: currentColor;
+    opacity: 0.18;
+    transform: scale(0);
+    pointer-events: none;
+    animation: rippleIn 0.5s cubic-bezier(0.2, 0.6, 0.3, 1) forwards;
+  }
+  @keyframes rippleIn {
+    from {
+      transform: scale(0);
+      opacity: 0.22;
+    }
+    to {
+      transform: scale(1);
+      opacity: 0;
+    }
+  }
+
+  /* short, quiet enter for a route change */
+  .animate-page-in {
+    animation: pageIn 0.22s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+  @keyframes pageIn {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ripple-ink,
+  .animate-page-in,
+  .animate-fade-in,
+  .animate-slide-up,
+  .float-soft {
+    animation: none !important;
+  }
+  .btn:active {
+    transform: none !important;
   }
 }

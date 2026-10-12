@@ -79,22 +79,39 @@ class CheckoutController extends Controller
             return response()->json(['purchaseId' => $purchase->id, 'amount' => 0, 'checkoutUrl' => null, 'walletPaid' => true]);
         }
 
-        $checkoutId = (string) Str::uuid();
-        $existing = Purchase::where('user_id', $request->user()->id)->where('checkout_id', $checkoutId)->first();
-        if (! $existing) {
-            $existing = $this->newPurchase($request->user()->id, $chapter, $pricing, $checkoutId, $data['couponCode'] ?? null);
+        // A chapter holds at most one order per (user, status) — the schema has a
+        // unique index on [user_id, chapter_id, status] — so a retry after a
+        // failed attempt must reuse that order instead of inserting a second one
+        // (which would collide the moment the gateway fails again).
+        $existing = Purchase::where('user_id', $request->user()->id)
+            ->where('chapter_id', $chapter->id)
+            ->whereIn('status', ['pending', 'failed'])
+            ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
+            ->latest('id')
+            ->first();
+        if ($existing) {
+            $existing->update([
+                'checkout_id' => (string) Str::uuid(),
+                'price' => $pricing['finalPrice'],
+                'base_price' => $pricing['basePrice'],
+                'discount_label' => $pricing['discountLabel'] ?: null,
+                'coupon_code' => $pricing['couponPercent'] > 0 ? strtoupper(trim((string) ($data['couponCode'] ?? ''))) : null,
+                'status' => 'pending',
+            ]);
+        } else {
+            $existing = $this->newPurchase($request->user()->id, $chapter, $pricing, (string) Str::uuid(), $data['couponCode'] ?? null);
         }
         // The gateway must redirect back to OUR backend (not the SPA) so the
         // payment can be verified server-side before the browser is redirected
         // to the frontend status page.
-        $callbackUrl = rtrim((string) env('APP_URL', ''), '/').'/api/v1/payment/callback?purchase='.$existing->id;
+        $callbackUrl = rtrim((string) config('app.url'), '/').'/api/v1/payment/callback?purchase='.$existing->id;
         try {
             $result = $this->gateway->initiate($pricing['finalPrice'], 'خرید فصل '.$chapter->title.' — آکادمی ایلیت', $callbackUrl, (string) $existing->id);
             $existing->update(['gateway_ref' => $result['ref']]);
 
             return response()->json(['purchaseId' => $existing->id, 'amount' => $pricing['finalPrice'], 'checkoutUrl' => $result['url']]);
         } catch (\Throwable $e) {
-            $existing->update(['status' => 'failed']);
+            $this->markFailed($existing);
             report($e);
 
             return response()->json(['message' => 'درگاه پرداخت در دسترس نیست. کمی بعد دوباره تلاش کنید.'], 502);
@@ -109,7 +126,7 @@ class CheckoutController extends Controller
         if (! $purchase) {
             PaymentEventLogger::finish($eventId, 'failed', null, 'purchase_not_found');
 
-            return redirect()->to(rtrim((string) env('FRONTEND_URL', ''), '/').'/payment?status=failed');
+            return redirect()->to(rtrim((string) config('app.frontend_url'), '/').'/payment?status=failed');
         }
         // Only the backend is allowed to call verify; the gateway never sends a
         // Bearer token, so this route must stay outside the auth middleware.
@@ -148,7 +165,7 @@ class CheckoutController extends Controller
             }
         }
         if ($status !== 'success') {
-            $purchase->update(['status' => 'failed']);
+            $this->markFailed($purchase);
         } else {
             $chapterTitle = $purchase->chapter?->title ?? 'فصل آموزشی';
             app(NotificationService::class)->send(
@@ -302,6 +319,25 @@ class CheckoutController extends Controller
         ]);
     }
 
+    /**
+     * Mark an order as failed.
+     *
+     * The unique [user_id, chapter_id, status] index allows a single failed row
+     * per chapter, so an older failed attempt for the same chapter is removed
+     * first; the payment-event log keeps the full audit trail either way.
+     */
+    private function markFailed(Purchase $purchase): void
+    {
+        DB::transaction(function () use ($purchase) {
+            Purchase::where('user_id', $purchase->user_id)
+                ->where('chapter_id', $purchase->chapter_id)
+                ->where('status', 'failed')
+                ->whereKeyNot($purchase->getKey())
+                ->delete();
+            $purchase->update(['status' => 'failed']);
+        });
+    }
+
     private function hasPaidAccess(string $userId, string $chapterId): bool
     {
         return Purchase::where('user_id', $userId)->where('chapter_id', $chapterId)->where('status', 'paid')->exists();
@@ -309,7 +345,7 @@ class CheckoutController extends Controller
 
     private function redirectResult(Purchase $purchase, string $status): RedirectResponse
     {
-        $frontend = rtrim((string) env('FRONTEND_URL', ''), '/');
+        $frontend = rtrim((string) config('app.frontend_url'), '/');
         $granted = $status === 'success';
         if ($granted) {
             // Access is derived from paid purchases (see AccessController / catalog),

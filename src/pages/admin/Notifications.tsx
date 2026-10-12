@@ -74,7 +74,7 @@ export default function AdminNotifications() {
     setTitle("");
     setBody("");
     setSending(false);
-    setSent({ msg: `اعلان شما برای ${audience} ثبت شد (حالت نمایشی).`, ok: true });
+    setSent({ msg: `اعلان برای ${audience} ثبت شد.`, ok: true });
     setTimeout(() => setSent(null), 3000);
   };
 
@@ -96,7 +96,6 @@ export default function AdminNotifications() {
             sent.ok ? "border-teal/25 text-teal" : "border-danger/30 text-danger"
           }`}
         >
-          {sent.ok ? "✓ " : "✕ "}
           {sent.msg}
         </div>
       )}
@@ -129,8 +128,8 @@ export default function AdminNotifications() {
 
       <p className="mt-4 flex items-center gap-2 text-xs text-muted">
         <Bell size={14} className="text-sky" />
-        در نسخه کامل، اعلان‌ها به‌صورت درون‌برنامه‌ای (WebSocket) و پیامکی (SMS) ارسال می‌شوند و
-        برای گروه‌های هدف (خریداران یک فصل، کاربران فعال و…) قابل شخصی‌سازی هستند.
+        اعلان‌ها به‌صورت درون‌برنامه‌ای برای گروه هدف انتخاب‌شده (خریداران یک فصل، کاربران فعال و…)
+        ارسال می‌شوند و در زنگ اعلان همان کاربران نمایش داده می‌شوند.
       </p>
 
       <Modal open={open} onClose={() => setOpen(false)} title="ارسال اعلان جدید" wide>
@@ -187,7 +186,7 @@ export default function AdminNotifications() {
             <p className="text-xs text-muted">
               {isLaravelConfigured()
                 ? "پس از ارسال، تعداد واقعی دریافت‌کنندگان (کاربران فعال غیرادمین) گزارش می‌شود."
-                : "حالت نمایشی: بدون اتصال به API، فقط برای حساب فعلی ثبت می‌شود."}
+                : "بدون اتصال به سرویس‌دهنده، اعلان فقط برای حساب فعلی ثبت می‌شود."}
             </p>
             <div className="flex gap-3">
               <button onClick={() => setOpen(false)} className="btn-secondary btn-md">

@@ -22,6 +22,9 @@ export default function Auth() {
   const [name, setName] = useState("");
   const [nameErr, setNameErr] = useState("");
   const [welcome, setWelcome] = useState(false);
+  // Local development only: the API hands the SMS code back while the SMS
+  // provider is disabled, so the sign-in flow stays testable end to end.
+  const [devCode, setDevCode] = useState("");
 
   const codeRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -51,6 +54,7 @@ export default function Auth() {
       setPhoneErr(res.error || "ارسال کد با خطا مواجه شد");
       return;
     }
+    setDevCode(res.debugCode ?? "");
     setCountdown(60);
     setStep("otp");
   };
@@ -181,28 +185,6 @@ export default function Auth() {
                 </>
               )}
             </button>
-            <div className="rounded-lg border border-sky/20 bg-sky/5 px-4 py-3 text-xs leading-6 text-muted">
-              <p className="font-bold text-sky">نسخه نمایشی</p>
-              کد تأیید به‌صورت خودکار: <b dir="ltr">12345</b> — برای ورود به پنل مدیریت از شماره{" "}
-              <b dir="ltr">09121234567</b> استفاده کنید.
-            </div>
-            <button
-              onClick={() => {
-                setPhone("09121234567");
-                setSending(true);
-                requestOtp("09121234567").then(() => {
-                  setSending(false);
-                  setCountdown(60);
-                  setStep("otp");
-                  setCode(["1", "2", "3", "4", "5"]);
-                  submitCode("12345");
-                });
-              }}
-              disabled={sending}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-warn/25 bg-warn/10 px-4 py-3 text-sm font-bold text-warn transition-colors hover:bg-warn/20"
-            >
-              <ShieldCheck size={15} /> ورود سریع به پنل مدیریت
-            </button>
           </div>
         )}
 
@@ -237,6 +219,11 @@ export default function Auth() {
             {codeErr && (
               <p className="text-center text-xs text-danger" role="alert">
                 {codeErr}
+              </p>
+            )}
+            {import.meta.env.DEV && devCode && (
+              <p className="rounded-lg border border-warn/25 bg-warn/10 px-3 py-2 text-center text-[11px] leading-5 text-warn">
+                حالت توسعه (پیامک غیرفعال): کد تأیید <b dir="ltr">{devCode}</b> است.
               </p>
             )}
             <button

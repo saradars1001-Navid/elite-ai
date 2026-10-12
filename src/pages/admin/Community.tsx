@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Flag, Trash2, Lock as LockIcon, Unlock, Users, MessageSquare } from "lucide-react";
 import { useApp } from "../../lib/store";
-import { AdminHeader, Table, Td, Badge } from "./AdminUI";
+import { AdminHeader, Table, Td, TRow, Badge } from "./AdminUI";
 import { toFa, timeAgo } from "../../lib/utils";
 import { Modal } from "../../components/ui";
 
@@ -41,7 +41,7 @@ export default function AdminCommunity() {
 
       {saved && (
         <div className="card mb-6 border border-teal/25 p-4 text-sm text-teal animate-fade-in">
-          ✓ تغییرات ذخیره شد.
+          تغییرات ذخیره شد.
         </div>
       )}
 
@@ -107,7 +107,7 @@ export default function AdminCommunity() {
       </h2>
       <Table head={["عنوان", "نویسنده", "دسته‌بندی", "لایک", "پاسخ", "وضعیت", "اقدامات"]}>
         {normal.map((p) => (
-          <tr key={p.id} className="transition-colors hover:bg-surface2/30">
+          <TRow key={p.id}>
             <Td>
               <p className="max-w-[260px] truncate font-bold">{p.title}</p>
             </Td>
@@ -148,7 +148,7 @@ export default function AdminCommunity() {
                 </button>
               </div>
             </Td>
-          </tr>
+          </TRow>
         ))}
       </Table>
 

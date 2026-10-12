@@ -15,14 +15,15 @@ import {
   Lock,
 } from "lucide-react";
 import { useApp } from "../lib/store";
-import { categoryEmoji, evaluatePrompt, simulateToolOutput } from "../lib/promptlab";
+import { evaluatePrompt, simulateToolOutput } from "../lib/promptlab";
+import { CategoryGlyph, PromptToolGlyph } from "../lib/entityIcons";
 import { cls, toFa, timeAgo } from "../lib/utils";
 import { Progress, EmptyState } from "../components/ui";
 import type { PromptTool, PromptToolResult } from "../lib/types";
 
 const TASK_STYLE: Record<string, string> = {
   متن: "border border-sky/25 bg-sky/10 text-sky",
-  تصویر: "border border-[#A78BFA]/25 bg-[#8B5CF6]/10 text-[#A78BFA]",
+  تصویر: "border border-[#A78BFA]/25 bg-[#7C3AED]/10 text-[#A78BFA]",
   کد: "border border-teal/25 bg-teal/10 text-teal",
   جدول: "border border-warn/25 bg-warn/10 text-warn",
   تحلیل: "border border-danger/25 bg-danger/10 text-danger",
@@ -132,7 +133,7 @@ export default function PromptLab() {
     <div className="container-x py-8 sm:py-12">
       {/* header */}
       <div className="mb-8">
-        <span className="chip mb-3 border border-[#8B5CF6]/25 bg-[#8B5CF6]/10 text-[#A78BFA]">
+        <span className="chip mb-3 border border-[#7C3AED]/25 bg-[#7C3AED]/10 text-[#A78BFA]">
           <Wand2 size={13} /> آزمایشگاه پرامپت
         </span>
         <h1 className="text-2xl font-black sm:text-3xl">تمرین زنده پرامپت‌نویسی</h1>
@@ -149,7 +150,7 @@ export default function PromptLab() {
           {/* step 1: scenario */}
           <section className="card p-5">
             <h2 className="mb-1 flex items-center gap-2 font-bold">
-              <span className="grid h-6 w-6 place-items-center rounded-md bg-[#8B5CF6]/15 text-xs font-black text-[#A78BFA]">
+              <span className="grid h-6 w-6 place-items-center rounded-md bg-[#7C3AED]/15 text-xs font-black text-[#A78BFA]">
                 ۱
               </span>
               سناریو را انتخاب کن
@@ -162,12 +163,14 @@ export default function PromptLab() {
                   className={cls(
                     "rounded-lg border p-3.5 text-right transition-all",
                     s.id === scenarioId
-                      ? "border-[#8B5CF6]/60 bg-[#8B5CF6]/10 shadow-glow-sm"
+                      ? "border-[#7C3AED]/60 bg-[#7C3AED]/10 shadow-glow-sm"
                       : "border-line/60 bg-surface2/40 hover:border-line hover:bg-surface2"
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xl">{categoryEmoji(s.category)}</span>
+                    <span className="text-xl">
+                      <CategoryGlyph cat={s.category} />
+                    </span>
                     <span className={cls("chip !py-0.5", TASK_STYLE[s.taskType])}>
                       {s.taskType}
                     </span>
@@ -185,7 +188,7 @@ export default function PromptLab() {
           <section className="card p-5">
             <div className="mb-1 flex items-center justify-between gap-3">
               <h2 className="flex items-center gap-2 font-bold">
-                <span className="grid h-6 w-6 place-items-center rounded-md bg-[#8B5CF6]/15 text-xs font-black text-[#A78BFA]">
+                <span className="grid h-6 w-6 place-items-center rounded-md bg-[#7C3AED]/15 text-xs font-black text-[#A78BFA]">
                   ۲
                 </span>
                 پرامپتت را بنویس
@@ -240,7 +243,7 @@ export default function PromptLab() {
           {availableTools.length > 0 && (
             <section className="card p-5">
               <h2 className="mb-3 flex items-center gap-2 font-bold">
-                <span className="grid h-6 w-6 place-items-center rounded-md bg-[#8B5CF6]/15 text-xs font-black text-[#A78BFA]">
+                <span className="grid h-6 w-6 place-items-center rounded-md bg-[#7C3AED]/15 text-xs font-black text-[#A78BFA]">
                   ۳
                 </span>
                 با کدام ابزارها اجرا شود؟
@@ -255,11 +258,13 @@ export default function PromptLab() {
                       className={cls(
                         "flex items-center gap-2 rounded-lg border px-3.5 py-2.5 text-sm font-medium transition-all",
                         on
-                          ? "border-[#8B5CF6]/60 bg-[#8B5CF6]/10 text-text"
+                          ? "border-[#7C3AED]/60 bg-[#7C3AED]/10 text-text"
                           : "border-line/60 bg-surface2/40 text-locked hover:text-text"
                       )}
                     >
-                      <span className="text-base">{t.emoji}</span>
+                      <span className="text-base">
+                        <PromptToolGlyph id={t.id} />
+                      </span>
                       {t.name}
                       {on && <CheckCircle2 size={14} className="text-[#A78BFA]" />}
                     </button>
@@ -300,7 +305,7 @@ export default function PromptLab() {
                   <div key={r.toolId} className="card overflow-hidden">
                     <div className="flex items-center gap-2.5 border-b border-line/50 bg-surface2/40 px-4 py-3">
                       <span className="grid h-8 w-8 place-items-center rounded-lg bg-navy text-lg">
-                        {tool.emoji}
+                        <PromptToolGlyph id={tool.id} />
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold">{tool.name}</p>

@@ -60,7 +60,7 @@ export default function ExamResult() {
                 cy="60"
                 r={circleR - 8}
                 fill="none"
-                stroke={attempt.score >= ch.exam.passScore ? "#20D6B5" : "#F0445B"}
+                stroke={attempt.score >= ch.exam.passScore ? "#20D6B5" : "#EF4444"}
                 strokeWidth="10"
                 strokeLinecap="round"
                 strokeDasharray={circleC}
@@ -185,7 +185,7 @@ export default function ExamResult() {
           <button
             onClick={() => {
               navigator.clipboard?.writeText(
-                `نمره من در آزمون «${ch.exam.title}» آکادمی ایلیت: ${toFa(attempt.score)} از ۱۰۰ 🎓`
+                `نمره من در آزمون «${ch.exam.title}» آکادمی ایلیت: ${toFa(attempt.score)} از ۱۰۰`
               );
             }}
             className="btn-ghost btn-md"

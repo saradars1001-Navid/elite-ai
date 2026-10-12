@@ -23,16 +23,20 @@ cp .env.example .env
 php artisan key:generate
 php artisan migrate --force
 php artisan db:seed --force
+node scripts/export-content.mjs      # در ریشه پروژه — محتوای همراه اپ را به JSON می‌ریزد
+php artisan academy:import           # فصل‌ها، درس‌ها، کوییزها، آزمون‌ها، ابزارها، ویدئوها، پرامپت‌ها و کامیونیتی
+php artisan academy:make-admin 09121234567   # ساخت/ارتقای حساب مدیر
 php artisan config:cache
 php artisan route:cache
 ```
 
 5. `storage` و `bootstrap/cache` باید writable باشند (با `chmod -R 775 storage bootstrap/cache`). `APP_DEBUG=false` و HTTPS الزامی است.
-5b. **زمان‌بند (Scheduler):** برای اجرای jobهای زمان‌بندی‌شده (پاک‌سازی اعلان‌ها و…) یک cron در cPanel/هاست اضافه کنید (هر دقیقه — خود لاراول فقط کارهای موعد را اجرا می‌کند):
+   5b. **زمان‌بند (Scheduler):** برای اجرای jobهای زمان‌بندی‌شده (پاک‌سازی اعلان‌ها و…) یک cron در cPanel/هاست اضافه کنید (هر دقیقه — خود لاراول فقط کارهای موعد را اجرا می‌کند):
 
 ```cron
 * * * * * cd /path/to/backend && php artisan schedule:run >> /dev/null 2>&1
 ```
+
 6. در Twilio یک شماره ارسال‌کننده فعال کنید و `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` را فقط در `backend/.env` وارد کنید. در production، `OTP_TEST_MODE=false` بماند.
 7. برای فرانت‌اند، در `.env` ریشه پروژه مقدار زیر را بگذارید و build بگیرید:
 
@@ -64,6 +68,7 @@ VITE_API_BASE_URL=https://api.example.com/api/v1
 - `POST /api/v1/live-matches` (ایجاد مسابقه زنده)
 - `GET /api/v1/live-matches/lobby` (لیست مسابقه‌های در انتظار)
 - `POST /api/v1/live-matches/{id}/join` و `POST /api/v1/live-matches/{id}/start`
+- `POST /api/v1/live-matches/{id}/rematch` (بازی دوباره: فقط میزبان، فقط بعد از پایان — سؤال‌های تازه + صفر شدن امتیازها)
 - `GET /api/v1/live-matches/{id}` و `POST /api/v1/live-matches/{id}/answer`
 - `GET/POST /api/v1/community/posts`
 - `POST /api/v1/checkout` (ایجاد سفارش + URL درگاه)
@@ -237,7 +242,9 @@ vendor/bin/phpunit
 - **`QuizTest.php`** — نمایش کوییز منتشرشده/پیش‌نویس (۴۰۴)، امتیازدهی سمت سرور + XP/امتیاز، و لیدربورد بر اساس بهترین نمره هر کاربر.
 - **`UserLeaderboardTest.php`** — جستجوی کاربران واقعی (صف مسابقه)، لیدربورد سراسری XP، لیست دسترسی فصل‌ها و به‌روزرسانی پروفایل.
 - **`AdminTest.php`** — گارد ۴۰۳ ادمین، مدیریت کاربران (لیست/فیلتر/ساخت/ویرایش)، لاگ رویدادهای پرداخت، upsert/delete منابع (فصل/کوییز/ابزار) و اندپوینت آمار زنده (فروش، پیشرفت، کوییز).
-- **`LiveMatchTest.php`** — چرخه کامل مسابقه زنده: ساخت از بانک سؤال، لابی، پیوستن (ظرفیت/تکرار/شروع خودکار)، شروع توسط میزبان، پاسخ با امتیاز سرعت، و پایان با رتبه + XP.
+- **`LiveMatchTest.php`** — چرخه کامل مسابقه زنده: ساخت از بانک سؤال، لابی، پیوستن (ظرفیت/تکرار/شروع خودکار)، شروع توسط میزبان، پاسخ با امتیاز سرعت، پایان با رتبه + XP، رتبه‌بندی قطعی در tie-breaking (امتیاز/تعداد درست/زمینه شروع)، rematch، رفتار مسابقه وقتی بازیکن میانه قطع می‌شود، و وقتی هر دو بازیکن از ابتدا ساکت می‌مانند — تنها انقضای تایمر سؤال‌ها مسابقه را به finished می‌رساند، نه اینکه بدون XP رها شود.
+- **۱۸۵ تست / ۸۹۹ asserion** در کل (بعد از اضافه شدن تست timer-only-advance).
+
 - **`PromptLabTest.php`** — لیست سناریوهای منتشرشده و امتیازدهی پرامپت با سقف maxScore و XP.
 - **`ExamTest.php`** — آزمون پایان فصل (`POST /exams/{chapter}/submit`): تصحیح سمت سرور (نمره جعلی کلاینت نادیده گرفته می‌شود)، ذخیره `exam_attempts`، اعطای تخفیف عملکردی از `discount_rules` (tiers ۳۰/۲۰/۱۰)، اعلان «تخفیف عملکردی فعال شد» (درون‌برنامه‌ای + پیامک از NotificationService)، اعلان ساده برای قبولی/عدم‌قبولی بدون تخفیف، دسترسی فصل پولی (۴۰۳ بدون خرید، مجاز برای خریدار/ادمین)، فصل آخر بدون تخفیف، و اجرای کامل `db:seed` (۶ آزمون + ۴۸ سؤال).
 
@@ -330,6 +337,58 @@ npm run build                # بیلد + PWA
 
 نکته: متغیرهای تست (مانند `FRONTEND_URL` و `ZARINPAL_MERCHANT_ID`) در `phpunit.xml` تعریف شده‌اند؛ `bootstrap/providers.php` سرویس‌پروایدرها (از جمله `PaymentService`) را ثبت می‌کند — بدون آن، وابستگی درگاه در کنترلرها resolve نمی‌شود.
 
+## اجرای محلی (XAMPP)
+
+۱. Apache/MySQL را از کنترل‌پنل XAMPP بالا بیاورید و دیتابیس بسازید:
+
+```sql
+CREATE DATABASE elite_ai CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+۲. `backend/.env` را از روی `backend/.env.example` بسازید (در حالت محلی `APP_ENV=local`,
+`APP_DEBUG=true`, `APP_URL=http://127.0.0.1:8000`, `FRONTEND_URL=http://127.0.0.1:5173`,
+`OTP_TEST_MODE=false`, `ZARINPAL_SANDBOX=true`) و سه مقدار Twilio
+(`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM`) را وارد کنید و سپس:
+
+```bash
+cd backend
+php artisan key:generate
+php artisan migrate --force
+php artisan db:seed --force
+cd ..
+node scripts/export-content.mjs
+cd backend && php artisan academy:import && cd ..
+php backend/artisan academy:make-admin 09121234567
+```
+
+۳. سرور API و فرانت‌اند را بالا بیاورید:
+
+```bash
+cd backend && php artisan serve --host=127.0.0.1 --port=8000   # ترمینال اول
+npm run dev                                                     # ترمینال دوم
+```
+
+۴. در ریشه پروژه `.env.local` بسازید تا فرانت‌اند به همین API وصل شود (این فایل commit نمی‌شود):
+
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
+```
+
+تنظیم پیش‌فرض همین مخزن `OTP_TEST_MODE=false` است: کد ورود واقعاً از طریق Twilio ارسال می‌شود و
+پاسخ `POST /auth/otp/request` فقط `ok` و `expiresIn` دارد. اگر Twilio پیکربندی نشده باشد، همین مسیر
+به‌جای شکستن با `503` و پیام «ارسال پیامک انجام نشد» پاسخ می‌دهد و هیچ کدی در پاسخ نیست.
+
+برای توسعهٔ بدون Twilio می‌توانید موقتاً `OTP_TEST_MODE=true` بگذارید (فقط با `APP_ENV=local`)؛ در آن
+حالت پاسخ فیلد `debugCode` را هم برمی‌گرداند و صفحه ورود آن را زیر کادر کد نشان می‌دهد. این فیلد خارج
+از `APP_ENV=local` هرگز ارسال نمی‌شود و با `OTP_TEST_MODE=false` اصلاً ساخته نمی‌شود.
+
+> درگاه پرداخت محلی اعتبارنامه ندارد؛ برای تست مسیر خرید از «کیف پول» استفاده کنید یا
+> `ZARINPAL_MERCHANT_ID`/`IDPAY_API_KEY` سندباکس را در `backend/.env` وارد کنید.
+
 ## نکته مهم درباره داده اولیه
 
-Backend عمداً کاربر و leaderboard جعلی تولید نمی‌کند. برای نمایش محتوا باید فصل‌ها، درس‌ها، سوال‌ها، ابزارها و ویدئوها را از پنل مدیریت/API وارد کنید. تا قبل از تنظیم `VITE_API_BASE_URL`، فرانت برای توسعه از داده محلی قبلی استفاده می‌کند؛ این fallback برای production نباید فعال باشد.
+Backend عمداً کاربر و leaderboard جعلی تولید نمی‌کند. محتوای آموزشی از بستهٔ فرانت‌اند استخراج و با
+`php artisan academy:import` وارد می‌شود (`backend/database/academy-content.json`)؛ این دستور
+idempotent است و پس از هر تغییر محتوا دوباره قابل اجراست. کاربران واقعی فقط با OTP ساخته می‌شوند و
+نقش مدیر با `php artisan academy:make-admin <phone>` داده می‌شود. پیش از تنظیم `VITE_API_BASE_URL`،
+فرانت برای توسعه از همان محتوای همراه اپ استفاده می‌کند؛ این fallback برای production نباید فعال باشد.

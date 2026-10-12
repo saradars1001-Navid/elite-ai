@@ -5,6 +5,10 @@ import { SiteLayout, DashboardLayout, AdminLayout } from "./components/Layout";
 import { EmptyState } from "./components/ui";
 import { OfflineBanner } from "./components/Pwa";
 import { Compass } from "lucide-react";
+import Explore from "./pages/Explore";
+import PromptTrends from "./pages/PromptTrends";
+import AdminExplore from "./pages/admin/Explore";
+import AdminPromptTrends from "./pages/admin/PromptTrends";
 import Home from "./pages/Home";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -38,10 +42,8 @@ import AdminNotifications from "./pages/admin/Notifications";
 import AdminSettings from "./pages/admin/Settings";
 import AdminPricingPreview from "./pages/admin/PricingPreview";
 import AdminPromptLab from "./pages/admin/PromptLab";
-import Explore from "./pages/Explore";
-import PromptTrends from "./pages/PromptTrends";
-import AdminExplore from "./pages/admin/Explore";
-import AdminPromptTrends from "./pages/admin/PromptTrends";
+import UIKitHub from "./pages/UIKitHub";
+import { useGlobalRipple } from "./components/Touch";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -83,6 +85,9 @@ function NotFound() {
 }
 
 export default function App() {
+  // One document-level listener gives every row/button/tab an ink ripple.
+  useGlobalRipple();
+
   return (
     <>
       <OfflineBanner />
@@ -106,6 +111,7 @@ export default function App() {
           <Route path="/prompt-lab" element={<PromptLab />} />
           <Route path="/explore" element={<Explore />} />
           <Route path="/prompt-trends" element={<PromptTrends />} />
+          <Route path="/ui-kit" element={<UIKitHub />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/checkout/:chapterId" element={<Checkout />} />
           <Route path="/receipt/:purchaseId" element={<Receipt />} />

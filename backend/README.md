@@ -8,7 +8,7 @@
 2. محتوای این پوشه را خارج از `public_html` قرار دهید و فقط `backend/public` را به‌عنوان Document Root دامنه API تنظیم کنید. اگر تغییر Document Root ممکن نیست، محتوای `backend/public` را در `public_html` کپی کنید و مسیرهای `index.php` را مطابق محل جدید تنظیم کنید.
 3. `composer install --no-dev --optimize-autoloader` را اجرا کنید.
 4. فایل `.env.example` را به `.env` کپی کنید، `APP_KEY` بسازید و اطلاعات MySQL، دامنه فرانت و Twilio را وارد کنید.
-5. `php artisan migrate --force` و سپس `php artisan db:seed --force` را اجرا کنید.
+5. `php artisan migrate --force` و سپس `php artisan db:seed --force` را اجرا کنید. بعد محتوای آموزشی را وارد کنید: در ریشه پروژه `node scripts/export-content.mjs` را بزنید و سپس `php artisan academy:import` (idempotent — هر بار پس از تغییر محتوا دوباره قابل اجراست). حساب مدیر را با `php artisan academy:make-admin 09121234567` بسازید.
 6. دسترسی نوشتن `storage` و `bootstrap/cache` را فعال کنید.
 7. در فرانت‌اند مقدار `VITE_API_BASE_URL=https://api.example.com/api/v1` را تنظیم و دوباره build بگیرید.
 

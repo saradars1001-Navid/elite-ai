@@ -20,7 +20,7 @@ import {
 } from "../../lib/backend";
 import { isLaravelConfigured } from "../../lib/laravel";
 import type { AdminPaymentEvent, AdminRefundRequest } from "../../lib/laravel-admin";
-import { AdminHeader, Table, Td, Badge, faNum } from "./AdminUI";
+import { AdminHeader, Table, Td, TRow, Badge, faNum } from "./AdminUI";
 import { price, formatDate, timeAgo } from "../../lib/utils";
 import { Modal } from "../../components/ui";
 
@@ -117,7 +117,7 @@ export default function AdminPayments() {
 
       {saved && (
         <div className="card mb-6 border border-teal/25 p-4 text-sm text-teal animate-fade-in">
-          ✓ {flashText}
+          {flashText}
         </div>
       )}
 
@@ -195,7 +195,7 @@ export default function AdminPayments() {
 
           <Table head={["رسید", "کاربر", "فصل", "مبلغ", "تخفیف", "تاریخ", "وضعیت", "اقدام"]}>
             {list.map((p) => (
-              <tr key={p.id} className="transition-colors hover:bg-surface2/30">
+              <TRow key={p.id}>
                 <Td className="font-mono text-xs" dir="ltr">
                   {p.receiptId}
                 </Td>
@@ -240,18 +240,16 @@ export default function AdminPayments() {
                     <span className="text-[11px] text-locked">—</span>
                   )}
                 </Td>
-              </tr>
+              </TRow>
             ))}
             {list.length === 0 && (
-              <tr>
-                <Td colSpan={8} className="py-8 text-center text-sm text-muted">
-                  تراکنشی با این وضعیت وجود ندارد.
-                </Td>
-              </tr>
+              <div className="py-8 text-center text-sm text-muted">
+                تراکنشی با این وضعیت وجود ندارد.
+              </div>
             )}
           </Table>
 
-          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="tg-group mt-4 sm:max-w-2xl">
             {[
               {
                 l: "تراکنش موفق",
@@ -264,9 +262,11 @@ export default function AdminPayments() {
               { l: "ناموفق", v: faNum(allPurchases.filter((p) => p.status === "ناموفق").length) },
               { l: "لغوشده", v: faNum(allPurchases.filter((p) => p.status === "لغوشده").length) },
             ].map((s) => (
-              <div key={s.l} className="card p-4 text-center">
-                <p className="text-xl font-black text-sky">{s.v}</p>
-                <p className="text-[11px] text-muted">{s.l}</p>
+              <div key={s.l} className="tg-row">
+                <span className="tg-row-body">
+                  <span className="tg-row-title">{s.l}</span>
+                </span>
+                <span className="shrink-0 text-lg font-black text-sky">{s.v}</span>
               </div>
             ))}
           </div>
@@ -353,8 +353,8 @@ function RefundRequestsTable({
     return (
       <div className="card p-8 text-center text-sm leading-7 text-muted">
         <MessageSquareWarning size={22} className="mx-auto mb-3 text-locked" />
-        در حالت نمایشی (بدون اتصال به API) این بخش خالی است — پس از اتصال به بک‌اند Laravel،
-        درخواست‌های کاربران برای بازگشت وجه اینجا قابل بررسی و تأیید/رد هستند.
+        این بخش با اتصال به سرویس‌دهنده فعال می‌شود — درخواست‌های بازگشت وجه کاربران اینجا بررسی و
+        تأیید یا رد می‌شوند.
       </div>
     );
   }
@@ -494,10 +494,9 @@ function EventsTable({
     return (
       <div className="card p-8 text-center text-sm leading-7 text-muted">
         <Activity size={22} className="mx-auto mb-3 text-locked" />
-        لاگ رویدادها در حالت نمایشی (بدون اتصال به API) خالی است.
+        لاگ رویدادها با اتصال به سرویس‌دهنده فعال می‌شود.
         <br />
-        پس از اتصال به بک‌اند Laravel، همه وب‌هوک‌ها و callbackهای درگاه اینجا ثبت و قابل بازبینی
-        می‌شوند.
+        همه وب‌هوک‌ها و callbackهای درگاه اینجا ثبت و قابل بازبینی می‌شوند.
       </div>
     );
   }
@@ -535,7 +534,7 @@ function EventsRow({
   const hasDetail = e.payload || e.verifyResult || e.error;
   return (
     <>
-      <tr className="cursor-pointer transition-colors hover:bg-surface2/30" onClick={onToggle}>
+      <TRow className="cursor-pointer" onClick={onToggle}>
         <Td className="text-xs text-muted">{formatDate(e.createdAt)}</Td>
         <Td>
           <span className="chip border border-line/60 bg-surface2/50 text-xs">
@@ -559,9 +558,9 @@ function EventsRow({
             <span className="text-[11px] text-locked">—</span>
           )}
         </Td>
-      </tr>
+      </TRow>
       {open && hasDetail && (
-        <tr className="border-t border-line/40">
+        <TRow className="border-t-0">
           <Td colSpan={6} className="!bg-surface/50">
             <div className="space-y-3 text-xs leading-6">
               {e.error && (
@@ -575,7 +574,7 @@ function EventsRow({
               {e.payload && <JsonBlock title="Payload دریافتی" data={e.payload} />}
             </div>
           </Td>
-        </tr>
+        </TRow>
       )}
     </>
   );

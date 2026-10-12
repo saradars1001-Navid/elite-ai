@@ -157,7 +157,7 @@ export default function VideoPlayer({
                 v.currentTime = (Number(e.target.value) / 10000) * duration;
               }
             }}
-            className="h-1 w-full cursor-pointer appearance-none rounded-full bg-white/25 accent-[#2F8CFF]"
+            className="h-1 w-full cursor-pointer appearance-none rounded-full bg-white/25 accent-[#3B82F6]"
             aria-label="نوار پیشرفت ویدئو"
             dir="ltr"
           />
@@ -241,9 +241,8 @@ export default function VideoPlayer({
         <div className="flex items-center gap-2 text-xs text-muted">
           <Clock size={14} className="text-sky" />
           <span>
-            {title} — در نسخه تولید، ویدئو از طریق لینک امن و زمان‌دار ({toFa(45)} دقیقه) سرو می‌شود
-            و آدرس مستقیم فایل در سمت کاربر در دسترس نیست. در این نسخه نمایشی، دانلود از مرورگر
-            غیرفعال است.
+            {title} — ویدئو از طریق لینک امن و زمان‌دار ({toFa(45)} دقیقه) سرو می‌شود و آدرس مستقیم
+            فایل در سمت کاربر در دسترس نیست. دانلود از مرورگر غیرفعال است.
           </span>
         </div>
       </div>

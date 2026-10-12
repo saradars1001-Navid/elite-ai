@@ -15,7 +15,7 @@ class PaymentService extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(PaymentGateway::class, function () {
-            return match (env('PAYMENT_GATEWAY', 'zarinpal')) {
+            return match (config('payment.gateway', 'zarinpal')) {
                 'idpay' => new IDPayGateway,
                 default => new ZarinpalGateway,
             };

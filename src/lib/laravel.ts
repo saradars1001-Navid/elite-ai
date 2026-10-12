@@ -1,8 +1,10 @@
+import { CHAPTERS } from "./data";
 import type {
   AiTool,
   AppUser,
   Chapter,
   CommunityPost,
+  Lesson,
   ManagedUser,
   NotificationItem,
   PromptAttempt,
@@ -31,6 +33,22 @@ export function clearLaravelToken(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+/**
+ * An HTTP status the server actually sent. Keeping it separate from the
+ * plain `Error` thrown for transport failures (offline, DNS, refused
+ * connection) lets callers tell "the API rejected this" from "the API is
+ * unreachable" — only the former may destroy session state.
+ */
+class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function request<T>(path: string, init: RequestInit = {}, auth = true): Promise<T> {
   if (!configured) throw new Error("Laravel API is not configured");
   const headers = new Headers(init.headers);
@@ -40,7 +58,7 @@ async function request<T>(path: string, init: RequestInit = {}, auth = true): Pr
   if (auth && token) headers.set("Authorization", `Bearer ${token}`);
   const response = await fetch(`${baseUrl}${path}`, { ...init, headers });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.message || "خطا در ارتباط با API");
+  if (!response.ok) throw new ApiError(body.message || "خطا در ارتباط با API", response.status);
   return body as T;
 }
 
@@ -59,55 +77,66 @@ function user(row: ApiUser): AppUser {
 }
 
 function chapter(row: ApiUser): Chapter {
+  const id = String(row.id);
+  // The shipped bundle is the source of truth for what the public catalog does
+  // not expose (rating, students, exercises, exam questions, project) and for
+  // offline use. The API still owns everything it actually returns — most
+  // importantly lessons, whose content the server strips for locked chapters.
+  const fallback = CHAPTERS.find((c) => c.id === id);
   const lessons = Array.isArray(row.lessons) ? (row.lessons as ApiUser[]) : [];
-  const fallbackExam = (row.exam || {}) as ApiUser;
+  const instructor = (row.instructor || {}) as ApiUser;
+  const apiLessons: Lesson[] = lessons.map((l) => ({
+    id: String(l.id),
+    chapterId: String(l.chapter_id || id),
+    index: Number(l.index || 0),
+    title: String(l.title || ""),
+    kind: l.kind === "video" ? "video" : "text",
+    duration: Number(l.duration || 0),
+    summary: String(l.summary || ""),
+    // Never fall back to bundled content here: the server empties `content`
+    // for lessons the viewer has not paid for, and that is the paywall.
+    content: Array.isArray(l.content) ? (l.content as string[]) : [],
+    captions: Array.isArray(l.captions) ? (l.captions as string[]) : undefined,
+    free: Boolean(l.free),
+  }));
   return {
-    id: String(row.id),
-    index: Number(row.index || 0),
-    title: String(row.title || ""),
-    subtitle: String(row.subtitle || ""),
-    description: String(row.description || ""),
-    level: (row.level || "مقدماتی") as Chapter["level"],
+    id,
+    index: Number(row.index ?? fallback?.index ?? 0),
+    title: String(row.title || fallback?.title || ""),
+    subtitle: String(row.subtitle || fallback?.subtitle || ""),
+    description: String(row.description || fallback?.description || ""),
+    level: (row.level || fallback?.level || "مقدماتی") as Chapter["level"],
     instructor: {
       name: String(
-        (row.instructor as ApiUser | undefined)?.name || row.instructor_name || "تیم آموزشی"
+        instructor.name || row.instructor_name || fallback?.instructor.name || "تیم آموزشی"
       ),
-      role: String((row.instructor as ApiUser | undefined)?.role || row.instructor_role || "مدرس"),
+      role: String(instructor.role || row.instructor_role || fallback?.instructor.role || "مدرس"),
     },
-    duration: Number(row.duration || row.duration_minutes || 0),
-    price: Number(row.price || 0),
-    oldPrice: row.oldPrice == null ? undefined : Number(row.oldPrice),
-    free: Boolean(row.free),
-    icon: String(row.icon || "🧠"),
-    gradient: String(row.gradient || "from-sky/20 to-neon/5"),
-    prerequisites: Array.isArray(row.prerequisites) ? (row.prerequisites as string[]) : [],
-    outcome: Array.isArray(row.outcome) ? (row.outcome as string[]) : [],
-    completionRate: Number(row.completionRate || 0),
-    rating: Number(row.rating || 0),
-    students: Number(row.students || 0),
-    previewCount: Number(row.previewCount || 1),
-    lessons: lessons.map((l) => ({
-      id: String(l.id),
-      chapterId: String(l.chapter_id || row.id),
-      index: Number(l.index || 0),
-      title: String(l.title || ""),
-      kind: l.kind === "video" ? "video" : "text",
-      duration: Number(l.duration || 0),
-      summary: String(l.summary || ""),
-      content: Array.isArray(l.content) ? (l.content as string[]) : [],
-      captions: Array.isArray(l.captions) ? (l.captions as string[]) : undefined,
-      free: Boolean(l.free),
-    })),
-    exercises: [],
-    exam: {
-      id: String(fallbackExam.id || `exam-${row.id}`),
-      chapterId: String(row.id),
-      title: String(fallbackExam.title || "آزمون پایان فصل"),
-      durationMinutes: Number(fallbackExam.duration_minutes || 20),
-      passScore: Number(fallbackExam.pass_score || 70),
+    duration: Number(row.duration ?? row.duration_minutes ?? fallback?.duration ?? 0),
+    price: Number(row.price ?? fallback?.price ?? 0),
+    oldPrice: row.oldPrice == null ? fallback?.oldPrice : Number(row.oldPrice),
+    free: row.free == null ? Boolean(fallback?.free) : Boolean(row.free),
+    icon: String(row.icon || fallback?.icon || ""),
+    gradient: String(row.gradient || fallback?.gradient || "from-sky/20 to-neon/5"),
+    prerequisites: Array.isArray(row.prerequisites)
+      ? (row.prerequisites as string[])
+      : (fallback?.prerequisites ?? []),
+    outcome: Array.isArray(row.outcome) ? (row.outcome as string[]) : (fallback?.outcome ?? []),
+    completionRate: Number(row.completionRate ?? fallback?.completionRate ?? 0),
+    rating: Number(row.rating ?? fallback?.rating ?? 0),
+    students: Number(row.students ?? fallback?.students ?? 0),
+    previewCount: Number(row.previewCount ?? fallback?.previewCount ?? 1),
+    lessons: apiLessons.length ? apiLessons : (fallback?.lessons ?? []),
+    exercises: fallback?.exercises ?? [],
+    exam: fallback?.exam ?? {
+      id: `exam-${id}`,
+      chapterId: id,
+      title: "آزمون پایان فصل",
+      durationMinutes: 20,
+      passScore: 70,
       questions: [],
     },
-    project: {
+    project: fallback?.project ?? {
       title: "پروژه نهایی",
       description: "پروژه عملی فصل",
       tasks: [],
@@ -195,10 +224,16 @@ function prompt(row: ApiUser): TrendingPrompt {
   };
 }
 
-export async function laravelRequestOtp(phone: string): Promise<{ ok: boolean; error?: string }> {
+export async function laravelRequestOtp(
+  phone: string
+): Promise<{ ok: boolean; error?: string; debugCode?: string }> {
   try {
-    await request("/auth/otp/request", { method: "POST", body: JSON.stringify({ phone }) }, false);
-    return { ok: true };
+    const result = await request<{ ok: boolean; debugCode?: string }>(
+      "/auth/otp/request",
+      { method: "POST", body: JSON.stringify({ phone }) },
+      false
+    );
+    return { ok: true, debugCode: result.debugCode };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "خطا در ارسال کد" };
   }
@@ -227,8 +262,14 @@ export async function laravelLoadUser(): Promise<AppUser | null> {
   try {
     const result = await request<{ user: ApiUser }>("/me");
     return user(result.user);
-  } catch {
-    clearLaravelToken();
+  } catch (e) {
+    // Only the server declaring the token dead may end the session. A dropped
+    // connection, a timeout or a 5xx must not wipe it — otherwise a single
+    // offline load would silently sign the user out for good, and they would
+    // need a fresh SMS code to get back in.
+    if (e instanceof ApiError && e.status === 401) {
+      clearLaravelToken();
+    }
     return null;
   }
 }
@@ -263,7 +304,7 @@ export async function laravelLoadPromptLab(): Promise<{
     promptTools: result.promptTools.map((row) => ({
       id: String(row.id),
       name: String(row.name || ""),
-      emoji: String(row.emoji || "🧠"),
+      emoji: String(row.emoji || ""),
       category: String(row.category || ""),
       description: String(row.description || ""),
       style: String(row.style || ""),
@@ -299,10 +340,11 @@ export async function laravelLoadCatalog(): Promise<{
   quizzes: Quiz[];
   aiTools: AiTool[];
 }> {
+  // Authenticated on purpose: the API strips lesson content for chapters the
+  // viewer has not paid for, and it can only know the viewer from the token.
   const result = await request<{ chapters: ApiUser[]; quizzes: ApiUser[]; aiTools: ApiUser[] }>(
     "/catalog",
-    {},
-    false
+    {}
   );
   return {
     chapters: result.chapters.map(chapter),
@@ -326,22 +368,28 @@ export async function laravelLoadDiscovery(): Promise<{
 }
 export async function laravelLoadCommunity(): Promise<CommunityPost[]> {
   const result = await request<{ data?: ApiUser[] }>("/community/posts", {}, false);
-  return (result.data || []).map((row) => ({
-    id: String(row.id),
-    author: {
-      name: String((row.author as ApiUser | undefined)?.name || "کاربر"),
-      role: String((row.author as ApiUser | undefined)?.role || "کاربر"),
-      expert: Boolean((row.author as ApiUser | undefined)?.role === "instructor"),
-    },
-    category: String(row.category || ""),
-    title: String(row.title || ""),
-    body: String(row.body || ""),
-    tags: Array.isArray(row.tags) ? (row.tags as string[]) : [],
-    createdAt: String(row.created_at || ""),
-    likes: Number(row.likes || 0),
-    commentsCount: Number(row.comments_count || 0),
-    status: row.status === "closed" ? "closed" : "open",
-  }));
+  return (result.data || []).map((row) => {
+    const author = (row.author || {}) as ApiUser;
+    return {
+      id: String(row.id),
+      author: {
+        name: String(row.author_name || author.name || "کاربر"),
+        role: String(row.author_role || author.role || "کاربر"),
+        expert:
+          row.author_role === "instructor" ||
+          author.role === "instructor" ||
+          String(row.author_role || author.role || "").includes("مدرس"),
+      },
+      category: String(row.category || ""),
+      title: String(row.title || ""),
+      body: String(row.body || ""),
+      tags: Array.isArray(row.tags) ? (row.tags as string[]) : [],
+      createdAt: String(row.created_at || ""),
+      likes: Number(row.likes || 0),
+      commentsCount: Number(row.comments_count || 0),
+      status: row.status === "closed" ? "closed" : "open",
+    };
+  });
 }
 export async function laravelLoadAdminUsers(): Promise<ManagedUser[]> {
   const result = await request<{ users: { data?: ApiUser[] } }>("/admin/users");
@@ -351,7 +399,7 @@ export async function laravelLoadAdminUsers(): Promise<ManagedUser[]> {
     phone: String(row.phone || ""),
     role: row.role === "admin" ? "admin" : "user",
     label: row.role === "instructor" ? "مدرس" : "کاربر",
-    color: "#2F8CFF",
+    color: "#3B82F6",
     joinedAt: String(row.created_at || ""),
     status: row.status === "blocked" ? "غیرفعال" : "فعال",
     purchases: 0,
@@ -426,8 +474,11 @@ export async function laravelSubmitExam(
 export interface LiveMatchQuestion {
   text: string;
   options: string[];
-  correct: number;
-  explanation: string;
+  /** Secret while the match is live — the server reveals it once finished. */
+  correct?: number;
+  explanation?: string;
+  /** The viewer's own graded pick — only present after the match has finished. */
+  myAnswer?: number | null;
 }
 export interface LiveMatchPlayer {
   id: string;
@@ -475,6 +526,12 @@ export async function laravelJoinMatch(matchId: number): Promise<LiveMatchState>
 }
 export async function laravelStartMatch(matchId: number): Promise<LiveMatchState> {
   const r = await request<{ match: LiveMatchState }>(`/live-matches/${matchId}/start`, {
+    method: "POST",
+  });
+  return r.match;
+}
+export async function laravelRematch(matchId: number): Promise<LiveMatchState> {
+  const r = await request<{ match: LiveMatchState }>(`/live-matches/${matchId}/rematch`, {
     method: "POST",
   });
   return r.match;

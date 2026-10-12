@@ -20,23 +20,25 @@ use App\Http\Controllers\WalletController;
 use App\Http\Middleware\EnsureAdmin;
 use Illuminate\Support\Facades\Route;
 
+// Payment gateway endpoints are intentionally NOT throttled: gateways retry
+// webhook deliveries and redirect buyers around without bearer tokens, and a
+// 429 on these would break payment verification.
 Route::prefix('v1')->group(function () {
+    Route::get('payment/callback', [CheckoutController::class, 'callback']);
+    Route::get('wallet/callback', [WalletController::class, 'callback']);
+    Route::post('payment/webhook', [PaymentWebhookController::class, 'handle']);
+});
+
+Route::prefix('v1')->middleware('throttle:api')->group(function () {
     Route::prefix('auth')->group(function () {
-        Route::post('otp/request', [AuthController::class, 'requestOtp']);
-        Route::post('otp/verify', [AuthController::class, 'verifyOtp']);
+        Route::post('otp/request', [AuthController::class, 'requestOtp'])->middleware('throttle:otp-request');
+        Route::post('otp/verify', [AuthController::class, 'verifyOtp'])->middleware('throttle:otp-verify');
     });
     Route::get('catalog', [CatalogController::class, 'index']);
     Route::get('discovery', [CatalogController::class, 'discovery']);
     Route::get('prompt-lab', [PromptLabController::class, 'index']);
     Route::get('search', [CatalogController::class, 'search']);
     Route::get('quizzes/{quiz}', [QuizController::class, 'show']);
-    // Public: the payment gateway redirects the buyer here with query params;
-    // verification happens server-side, then the browser is sent to the SPA.
-    Route::get('payment/callback', [CheckoutController::class, 'callback']);
-    // Public: wallet charge callback (gateway redirect, no bearer token).
-    Route::get('wallet/callback', [WalletController::class, 'callback']);
-    // Public: server-to-server gateway webhook (payment/refund notifications).
-    Route::post('payment/webhook', [PaymentWebhookController::class, 'handle']);
     Route::get('quizzes/{quiz}/leaderboard', [QuizController::class, 'leaderboard']);
     Route::get('leaderboard', [UserController::class, 'leaderboard']);
     Route::get('community/posts', [CommunityController::class, 'index']);
@@ -58,12 +60,13 @@ Route::prefix('v1')->group(function () {
         Route::patch('notifications/{notification}/read', [NotificationController::class, 'markRead']);
         Route::delete('notifications/{notification}', [NotificationController::class, 'destroy']);
         Route::patch('profile', [ProfileController::class, 'update']);
-        Route::post('quizzes/{quiz}/attempts', [QuizController::class, 'submit']);
+        Route::post('quizzes/{quiz}/attempts', [QuizController::class, 'submit'])->middleware('throttle:quiz-submit');
         Route::post('exams/{chapter}/submit', [ExamController::class, 'submit']);
         Route::post('live-matches', [LiveMatchController::class, 'store']);
         Route::get('live-matches/lobby', [LiveMatchController::class, 'lobby']);
         Route::post('live-matches/{match}/join', [LiveMatchController::class, 'join']);
         Route::post('live-matches/{match}/start', [LiveMatchController::class, 'startMatch']);
+        Route::post('live-matches/{match}/rematch', [LiveMatchController::class, 'rematch']);
         Route::get('live-matches/{match}', [LiveMatchController::class, 'state']);
         Route::post('live-matches/{match}/answer', [LiveMatchController::class, 'answer']);
         Route::post('prompt-lab/attempts', [PromptLabController::class, 'submit']);

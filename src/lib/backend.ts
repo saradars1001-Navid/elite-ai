@@ -102,7 +102,9 @@ export async function backendAdminPricingPreview(payload: {
 
 /* ─────────────────────────────── Auth (SMS OTP) ─────────────────────────── */
 
-export async function backendRequestOtp(phone: string): Promise<{ ok: boolean; error?: string }> {
+export async function backendRequestOtp(
+  phone: string
+): Promise<{ ok: boolean; error?: string; debugCode?: string }> {
   if (isLaravelConfigured()) return laravelRequestOtp(phone);
   const { error } = await supabase!.auth.signInWithOtp({ phone });
   if (error) return { ok: false, error: authErrorMessage(error) };
@@ -634,7 +636,7 @@ export async function backendAdminRefundApprove(
   purchaseId: string
 ): Promise<{ ok: boolean; error?: string }> {
   if (isLaravelConfigured()) return laravelAdminRefundApprove(purchaseId);
-  return { ok: false, error: "در حالت دمو تأیید بازگشت وجه غیرفعال است" };
+  return { ok: false, error: "بدون اتصال به سرویس‌دهنده، تأیید بازگشت وجه در دسترس نیست" };
 }
 
 export async function backendAdminRefundReject(
@@ -642,7 +644,7 @@ export async function backendAdminRefundReject(
   reason?: string
 ): Promise<{ ok: boolean; error?: string }> {
   if (isLaravelConfigured()) return laravelAdminRefundReject(purchaseId, reason);
-  return { ok: false, error: "در حالت دمو رد درخواست بازگشت وجه غیرفعال است" };
+  return { ok: false, error: "بدون اتصال به سرویس‌دهنده، رد درخواست بازگشت وجه در دسترس نیست" };
 }
 
 /* ─────────────────────────── Access control (RLS-backed) ────────────────── */
@@ -734,7 +736,7 @@ export async function backendRefundPurchase(
   purchaseId: string
 ): Promise<{ ok: boolean; error?: string }> {
   if (isLaravelConfigured()) return laravelRefundPurchase(purchaseId);
-  return { ok: false, error: "در حالت دمو بازگشت وجه غیرفعال است" };
+  return { ok: false, error: "بدون اتصال به سرویس‌دهنده، بازگشت وجه در دسترس نیست" };
 }
 
 /** Buyer requests a refund on a paid purchase (pending until admin approval). */
@@ -753,7 +755,7 @@ export async function backendWalletInfo(): Promise<WalletInfo | null> {
 
 export async function backendChargeWallet(amount: number): Promise<ChargeResult> {
   if (isLaravelConfigured()) return laravelChargeWallet(amount);
-  return { error: "در حالت دمو شارژ از درگاه غیرفعال است" };
+  return { error: "شارژ کیف پول از درگاه با اتصال به سرویس‌دهنده فعال می‌شود" };
 }
 
 export async function backendGrantAccess(userId: string, chapterId: string): Promise<void> {

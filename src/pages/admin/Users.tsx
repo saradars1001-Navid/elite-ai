@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Trash2, Users as UsersIcon, UserPlus, Pencil, Save } from "lucide-react";
-import { AdminHeader, Table, Td, Badge, faNum } from "./AdminUI";
+import { AdminHeader, Table, Td, TRow, Badge, faNum } from "./AdminUI";
 import { useApp } from "../../lib/store";
 import { toFa, uid } from "../../lib/utils";
 import { Modal } from "../../components/ui";
@@ -31,7 +31,7 @@ export default function AdminUsers() {
       phone: "",
       role: "user",
       label: "کاربر",
-      color: "#2F8CFF",
+      color: "#3B82F6",
       joinedAt: "امروز",
       status: "فعال",
       purchases: 0,
@@ -64,7 +64,7 @@ export default function AdminUsers() {
 
       {saved && (
         <div className="card mb-6 border border-teal/25 p-4 text-sm text-teal animate-fade-in">
-          ✓ تغییرات کاربر ذخیره شد.
+          تغییرات کاربر ذخیره شد.
         </div>
       )}
 
@@ -81,7 +81,7 @@ export default function AdminUsers() {
         ]}
       >
         {managedUsers.map((u) => (
-          <tr key={u.id} className="transition-colors hover:bg-surface2/30">
+          <TRow key={u.id}>
             <Td>
               <div className="flex items-center gap-2.5">
                 <span
@@ -126,7 +126,7 @@ export default function AdminUsers() {
                 </button>
               </div>
             </Td>
-          </tr>
+          </TRow>
         ))}
       </Table>
 

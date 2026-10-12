@@ -1,3 +1,4 @@
+import { ChGlyph } from "../../lib/entityIcons";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -54,7 +55,7 @@ export default function AdminDashboard() {
   const chapterRates = (live ? stats.progress.perChapter : []).map((c) => ({
     id: c.id,
     title: c.title,
-    icon: c.icon || "📘",
+    icon: c.icon || "",
     rate: c.completionRate,
   }));
 
@@ -73,7 +74,7 @@ export default function AdminDashboard() {
     ? topLearners.map((u) => ({
         id: u.id,
         name: u.name,
-        color: "#2F8CFF",
+        color: "#3B82F6",
         meta: `روز پیاپی ${toFa(u.streak)}`,
         value: `${toFa(u.xp)} XP`,
         ok: true,
@@ -124,7 +125,8 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* Telegram grouped-row stats — same list language as the rest of the app */}
+      <div className="tg-group lg:max-w-2xl">
         <StatCard
           label="درآمد موفق تراکنش‌ها"
           value={price(revenue)}
@@ -154,7 +156,7 @@ export default function AdminDashboard() {
           label="کوییزها و ابزارها"
           value={faNum(quizzes.length + aiTools.length)}
           icon={Gamepad2}
-          tone="text-[#8B5CF6] bg-[#8B5CF6]/10"
+          tone="text-[#7C3AED] bg-[#7C3AED]/10"
           sub={
             live
               ? `${toFa(stats.quizzes.attempts)} تلاش کوییز`
@@ -182,7 +184,7 @@ export default function AdminDashboard() {
               <div key={c.id}>
                 <div className="mb-1.5 flex items-center justify-between text-sm">
                   <span className="font-medium">
-                    {c.icon} {c.title}
+                    <ChGlyph id={c.id} size={16} /> {c.title}
                   </span>
                   <span className="text-xs text-muted">{toFa(c.rate)}٪</span>
                 </div>
@@ -206,13 +208,10 @@ export default function AdminDashboard() {
                 همه پرداخت‌ها
               </Link>
             </div>
-            <div className="space-y-2.5">
+            <div className="tg-group">
               {recentPayments.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-line/50 bg-surface2/40 px-3.5 py-3"
-                >
-                  <div className="min-w-0">
+                <div key={p.id} className="tg-row">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold">{p.chapterTitle}</p>
                     <p className="truncate text-xs text-muted">
                       {p.receiptId} • {formatDate(p.date)}
@@ -222,9 +221,7 @@ export default function AdminDashboard() {
                 </div>
               ))}
               {recentPayments.length === 0 && (
-                <p className="rounded-lg border border-dashed border-line/60 p-5 text-center text-xs text-muted">
-                  هنوز تراکنشی ثبت نشده است.
-                </p>
+                <p className="p-5 text-center text-xs text-muted">هنوز تراکنشی ثبت نشده است.</p>
               )}
             </div>
           </section>
@@ -234,28 +231,29 @@ export default function AdminDashboard() {
             <h2 className="mb-4 flex items-center gap-2 font-bold">
               <Trophy size={18} className="text-warn" /> وضعیت کوییزها
             </h2>
-            <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="tg-group">
               {quizBoxes.map((s) => (
-                <div key={s.l} className="rounded-lg border border-line/60 bg-surface2/40 py-3">
-                  <p className="text-lg font-black text-sky">{s.v}</p>
-                  <p className="text-[11px] text-muted">{s.l}</p>
+                <div key={s.l} className="tg-row">
+                  <span className="tg-row-body">
+                    <span className="tg-row-title">{s.l}</span>
+                  </span>
+                  <span className="shrink-0 text-lg font-black text-sky">{s.v}</span>
                 </div>
               ))}
             </div>
             {live && stats.quizzes.topScorers.length > 0 && (
-              <div className="mt-4 space-y-1.5">
-                <p className="text-xs font-bold text-muted">برترین‌های کوییز:</p>
-                {stats.quizzes.topScorers.slice(0, 3).map((s, i) => (
-                  <p
-                    key={i}
-                    className="flex items-center justify-between rounded-lg border border-line/50 bg-surface2/40 px-3 py-2 text-xs"
-                  >
-                    <span className="font-medium">
-                      {i + 1}. {s.name}
-                    </span>
-                    <span className="text-sky">{toFa(s.pct)}٪</span>
-                  </p>
-                ))}
+              <div className="mt-4">
+                <p className="tg-group-title">برترین‌های کوییز</p>
+                <div className="tg-group">
+                  {stats.quizzes.topScorers.slice(0, 3).map((s, i) => (
+                    <p key={i} className="tg-row">
+                      <span className="tg-row-body">
+                        {i + 1}. {s.name}
+                      </span>
+                      <span className="shrink-0 text-sm font-black text-sky">{toFa(s.pct)}٪</span>
+                    </p>
+                  ))}
+                </div>
               </div>
             )}
           </section>
@@ -270,31 +268,23 @@ export default function AdminDashboard() {
                 مدیریت کاربران
               </Link>
             </div>
-            <div className="space-y-2">
+            <div className="tg-group">
               {people.map((u) => (
-                <div
-                  key={u.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-line/50 bg-surface2/40 px-3.5 py-2.5"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span
-                      className="grid h-8 w-8 place-items-center rounded-full text-xs font-bold text-white"
-                      style={{ background: u.color }}
-                    >
-                      {u.name[0]}
-                    </span>
-                    <div>
-                      <p className="text-sm font-bold">{u.name}</p>
-                      {live ? (
-                        <p className="text-[11px] text-muted">
-                          <Flame size={11} className="ml-0.5 inline text-warn" /> {u.meta}
-                        </p>
-                      ) : (
-                        <p className="text-[11px] text-muted" dir="ltr">
-                          {u.meta}
-                        </p>
-                      )}
-                    </div>
+                <div key={u.id} className="tg-row">
+                  <span className="tg-row-icon !rounded-full" style={{ background: u.color }}>
+                    <span className="text-xs font-bold text-white">{u.name[0]}</span>
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold">{u.name}</p>
+                    {live ? (
+                      <p className="text-[11px] text-muted">
+                        <Flame size={11} className="ml-0.5 inline text-warn" /> {u.meta}
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-muted" dir="ltr">
+                        {u.meta}
+                      </p>
+                    )}
                   </div>
                   {live ? (
                     <span className="text-xs font-black text-sky">{u.value}</span>

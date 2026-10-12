@@ -129,7 +129,7 @@ export default function Exam() {
   return (
     <div className="container-x max-w-3xl py-8 sm:py-10">
       {/* timer + progress */}
-      <div className="sticky top-16 z-30 -mx-4 mb-6 border-b border-line/50 bg-base/90 px-4 py-3 backdrop-blur-md sm:top-16">
+      <div className="sticky top-16 z-30 -mx-4 mb-6 border-b border-line/50 bg-page/90 px-4 py-3 backdrop-blur-md sm:top-16">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm">
             <Clock size={16} className={remaining < 60 ? "text-danger" : "text-sky"} />

@@ -121,7 +121,7 @@ export default function QuizPlay() {
     return (
       <div className="container-x max-w-xl py-14">
         <div className="card overflow-hidden">
-          <div className={cls("bg-grid h-2", quiz.kind === "daily" ? "bg-teal" : "bg-[#8B5CF6]")} />
+          <div className={cls("bg-grid h-2", quiz.kind === "daily" ? "bg-teal" : "bg-[#7C3AED]")} />
           <div className="space-y-5 p-7 sm:p-9">
             <span className="chip border border-sky/25 bg-sky/10 text-sky">
               {quiz.kind === "daily"
@@ -167,7 +167,7 @@ export default function QuizPlay() {
     const progress = ((idx + (locked ? 1 : 0)) / questions.length) * 100;
     return (
       <div className="container-x max-w-2xl py-8 sm:py-10">
-        <div className="sticky top-16 z-30 -mx-4 mb-6 border-b border-line/50 bg-base/90 px-4 py-3 backdrop-blur-md">
+        <div className="sticky top-16 z-30 -mx-4 mb-6 border-b border-line/50 bg-page/90 px-4 py-3 backdrop-blur-md">
           <div className="flex items-center justify-between">
             <span className="text-sm font-bold">
               سؤال {toFa(idx + 1)} از {toFa(questions.length)}
@@ -240,7 +240,7 @@ export default function QuizPlay() {
                   selected === q.correct ? "text-teal" : "text-danger"
                 )}
               >
-                {selected === q.correct ? "پاسخ درست بود! 🎉" : "پاسخ درست:"}
+                {selected === q.correct ? "پاسخ درست بود!" : "پاسخ درست:"}
               </p>
               <p className="text-sm leading-7 text-muted">
                 {q.options[q.correct]}. {q.explanation}
@@ -259,7 +259,7 @@ export default function QuizPlay() {
   const percentScore = Math.round((score / total) * 100);
   const msg =
     percentScore >= 90
-      ? { t: "فوق‌العاده!", d: "شما یک متخصص واقعی هوش مصنوعی هستید! 🏆" }
+      ? { t: "فوق‌العاده!", d: "شما یک متخصص واقعی هوش مصنوعی هستید!" }
       : percentScore >= 70
         ? { t: "عالی بود!", d: "دانش خوبی دارید؛ با کمی تمرین به اوج می‌رسید." }
         : percentScore >= 50
@@ -297,14 +297,14 @@ export default function QuizPlay() {
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <button
               onClick={() => {
-                const text = `در کوییز «${quiz.title}» آکادمی ایلیت: ${toFa(percentScore)}٪ درست پاسخ دادم (${toFa(correctCount)} از ${toFa(questions.length)}) 🎯`;
+                const text = `در کوییز «${quiz.title}» آکادمی ایلیت: ${toFa(percentScore)}٪ درست پاسخ دادم (${toFa(correctCount)} از ${toFa(questions.length)})`;
                 navigator.clipboard?.writeText(text);
                 setShared(true);
                 setTimeout(() => setShared(false), 2000);
               }}
               className="btn-secondary btn-md"
             >
-              <Share2 size={15} /> {shared ? "کپی شد ✓" : "اشتراک نتیجه"}
+              <Share2 size={15} /> {shared ? "کپی شد" : "اشتراک نتیجه"}
             </button>
             <button
               onClick={() => {

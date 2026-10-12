@@ -42,7 +42,9 @@ class AuthTest extends TestCase
     private function simulateSms(bool $enabled): void
     {
         $this->app->detectEnvironment(fn () => $enabled ? 'local' : 'testing');
-        putenv('OTP_TEST_MODE='.($enabled ? 'true' : 'false'));
+        // AuthController reads otp.test_mode via config(), so the test toggles
+        // the config override — runtime env() calls no longer exist there.
+        config(['otp.test_mode' => $enabled]);
     }
 
     /* ─────────────────────────── OTP request ─────────────────────────── */
@@ -88,7 +90,10 @@ class AuthTest extends TestCase
 
         $this->postJson('/api/v1/auth/otp/request', ['phone' => '09123456789'])
             ->assertStatus(503)
-            ->assertJson(['message' => 'ارسال پیامک انجام نشد. لطفاً بعداً دوباره تلاش کنید.']);
+            ->assertJson(['message' => 'ارسال پیامک انجام نشد. لطفاً بعداً دوباره تلاش کنید.'])
+            // With test mode off the OTP must never ride along — not on the
+            // failure path, not anywhere. The code exists only as a hash.
+            ->assertJsonMissingPath('debugCode');
 
         // The code is still persisted so a retry can verify it.
         $this->assertSame(1, OtpCode::count());

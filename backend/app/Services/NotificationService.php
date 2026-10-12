@@ -90,18 +90,21 @@ class NotificationService
 
     private function sms(User $user, string $text): void
     {
-        if (! filter_var(env('NOTIFY_SMS_ENABLED', false), FILTER_VALIDATE_BOOL)) {
+        if (! filter_var(config('services.twilio.sms_enabled', false), FILTER_VALIDATE_BOOL)) {
             return;
         }
-        if (! env('TWILIO_ACCOUNT_SID') || ! env('TWILIO_AUTH_TOKEN') || ! env('TWILIO_FROM')) {
+        $sid = (string) config('services.twilio.account_sid');
+        $token = (string) config('services.twilio.auth_token');
+        $from = (string) config('services.twilio.from');
+        if ($sid === '' || $token === '' || $from === '') {
             Log::warning('SMS notification skipped: Twilio is not configured.');
 
             return;
         }
         try {
-            $client = new Client(env('TWILIO_ACCOUNT_SID'), env('TWILIO_AUTH_TOKEN'));
+            $client = new Client($sid, $token);
             $client->messages->create($user->phone, [
-                'from' => env('TWILIO_FROM'),
+                'from' => $from,
                 'body' => 'آکادمی ایلیت: '.mb_substr($text, 0, 150),
             ]);
         } catch (\Throwable $e) {

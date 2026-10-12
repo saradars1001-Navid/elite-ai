@@ -147,7 +147,7 @@ export default function Exercises() {
               </span>
               {status && (
                 <span className="chip border border-teal/25 bg-teal/10 text-teal">
-                  ✓ {status.status}
+                  {status.status}
                 </span>
               )}
             </div>

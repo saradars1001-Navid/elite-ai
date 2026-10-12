@@ -17,12 +17,12 @@ class AuthController extends Controller
     {
         $data = $request->validate(['phone' => ['required', 'string', 'regex:/^(?:\+98|0098|98|0)?9\d{9}$/']]);
         $phone = $this->normalize($data['phone']);
-        $length = (int) env('OTP_LENGTH', 5);
+        $length = max(1, (int) config('otp.length', 5));
         $min = 10 ** ($length - 1);
         $max = (10 ** $length) - 1;
         $code = (string) random_int($min, $max);
         OtpCode::where('phone', $phone)->whereNull('used_at')->update(['used_at' => now()]);
-        OtpCode::create(['phone' => $phone, 'code_hash' => Hash::make($code), 'expires_at' => now()->addMinutes((int) env('OTP_TTL_MINUTES', 5))]);
+        OtpCode::create(['phone' => $phone, 'code_hash' => Hash::make($code), 'expires_at' => now()->addMinutes((int) config('otp.ttl_minutes', 5))]);
         try {
             $this->send($phone, $code);
         } catch (\Throwable $e) {
@@ -31,7 +31,15 @@ class AuthController extends Controller
             return response()->json(['message' => 'ارسال پیامک انجام نشد. لطفاً بعداً دوباره تلاش کنید.'], 503);
         }
 
-        return response()->json(['ok' => true, 'expiresIn' => (int) env('OTP_TTL_MINUTES', 5) * 60]);
+        $payload = ['ok' => true, 'expiresIn' => (int) config('otp.ttl_minutes', 5) * 60];
+        // Local development with the SMS provider disabled: hand the code back
+        // so the developer can sign in without reading the log file. Never sent
+        // outside APP_ENV=local.
+        if ($this->testMode()) {
+            $payload['debugCode'] = $code;
+        }
+
+        return response()->json($payload);
     }
 
     public function verifyOtp(Request $request): JsonResponse
@@ -92,17 +100,25 @@ class AuthController extends Controller
         return '+98'.$digits;
     }
 
+    private function testMode(): bool
+    {
+        return app()->environment('local') && filter_var(config('otp.test_mode', false), FILTER_VALIDATE_BOOL);
+    }
+
     private function send(string $phone, string $code): void
     {
-        if (app()->environment('local') && filter_var(env('OTP_TEST_MODE', false), FILTER_VALIDATE_BOOL)) {
+        if ($this->testMode()) {
             Log::info('Elite AI OTP generated', ['phone' => $phone, 'code' => $code]);
 
             return;
         }
-        if (! env('TWILIO_ACCOUNT_SID') || ! env('TWILIO_AUTH_TOKEN') || ! env('TWILIO_FROM')) {
+        $sid = (string) config('services.twilio.account_sid');
+        $token = (string) config('services.twilio.auth_token');
+        $from = (string) config('services.twilio.from');
+        if ($sid === '' || $token === '' || $from === '') {
             throw new \RuntimeException('OTP provider is not configured.');
         }
-        $client = new Client(env('TWILIO_ACCOUNT_SID'), env('TWILIO_AUTH_TOKEN'));
-        $client->messages->create($phone, ['from' => env('TWILIO_FROM'), 'body' => "کد ورود آکادمی ایلیت: {$code}"]);
+        $client = new Client($sid, $token);
+        $client->messages->create($phone, ['from' => $from, 'body' => "کد ورود آکادمی ایلیت: {$code}"]);
     }
 }

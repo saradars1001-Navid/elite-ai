@@ -122,9 +122,9 @@ export function simulateToolOutput(
 
   const commonIntro =
     scenario.taskType === "تصویر"
-      ? `🖼️ بر اساس درخواست شما («${ex}») صحنهٔ زیر تولید شد:`
+      ? `بر اساس درخواست شما («${ex}») صحنهٔ زیر تولید شد:`
       : scenario.taskType === "کد"
-        ? `👨‍💻 بر اساس درخواست شما («${ex}») کد زیر پیشنهاد می‌شود:`
+        ? `بر اساس درخواست شما («${ex}») کد زیر پیشنهاد می‌شود:`
         : `✅ پاسخ «${tool.name}» به درخواست شما («${ex}») — سبک پاسخ: ${tool.style}:`;
 
   const options =
@@ -151,26 +151,28 @@ export function simulateToolOutput(
               ]
             : [
                 `**پاسخ پیشنهادی «${tool.name}»:**\n\nبا توجه به ${ex}، ساختار پیشنهادی من این است:\n\n۱. مقدمه‌ای کوتاه با بیان هدف\n۲. بدنهٔ اصلی در ۲–۳ پاراگراف\n۳. جمع‌بندی با یک دعوت به اقدام\n\nدر صورت تمایل، نسخهٔ رسمی‌تر یا صمیمی‌تر هم می‌توانم بنویسم.`,
-                `**نسخهٔ صمیمی:**\n\nسلام! 🌟 بر اساس ${ex}، این پیشنهاد را آماده کردم:\n\n- بخش اول: معرفی و ارتباط با مخاطب\n- بخش دوم: ارزش اصلی و مزیت‌ها\n- بخش آخر: سؤال روشن برای ادامهٔ گفت‌وگو\n\nاگر لحن یا طول آن را تغییر دهم، بگویید.`,
+                `**نسخهٔ صمیمی:**\n\nسلام! بر اساس ${ex}، این پیشنهاد را آماده کردم:\n\n- بخش اول: معرفی و ارتباط با مخاطب\n- بخش دوم: ارزش اصلی و مزیت‌ها\n- بخش آخر: سؤال روشن برای ادامهٔ گفت‌وگو\n\nاگر لحن یا طول آن را تغییر دهم، بگویید.`,
               ];
 
   const body = options[seed % options.length];
-  const note = `\n\n_⚠️ خروجی شبیه‌سازی آموزشی — برای نمایش روند کار، با هوش مصنوعی واقعی تولید نشده است._`;
+  const note = `\n\n_خروجی شبیه‌سازی آموزشی — برای نمایش روند کار، با هوش مصنوعی واقعی تولید نشده است._`;
 
   return { toolId: tool.id, output: `${commonIntro}\n\n${body}${note}` };
 }
 
 /* ───────────────────────── helpers ───────────────────────── */
 
-export function categoryEmoji(cat: string): string {
-  const map: Record<string, string> = {
-    نگارش: "✍️",
-    تصویر: "🎨",
-    کدنویسی: "💻",
-    تحلیل: "📊",
-    جدول: "🧾",
-    متن: "📝",
-    کد: "⌨️",
+/** Prompt-lab category → lucide icon (was an emoji map). Lives here because
+    promptlab stays framework-free; the component wrapper is in entityIcons.tsx. */
+export function promptCategoryIcon(
+  cat: string
+): "image" | "code" | "chart" | "table" | "text" | "bot" {
+  const map: Record<string, "image" | "code" | "chart" | "table" | "text" | "bot"> = {
+    تصویر: "image",
+    کدنویسی: "code",
+    تحلیل: "chart",
+    جدول: "table",
+    متن: "text",
   };
-  return map[cat] ?? "🤖";
+  return map[cat] ?? "bot";
 }

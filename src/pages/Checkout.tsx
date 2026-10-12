@@ -1,3 +1,4 @@
+import { ChGlyph } from "../lib/entityIcons";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
@@ -199,7 +200,7 @@ export default function Checkout() {
               <StepTitle n={1} title="بررسی جزئیات فصل" />
               <div className="flex items-start gap-4">
                 <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-navy text-2xl">
-                  {ch.icon}
+                  <ChGlyph id={ch.id} size={20} />
                 </span>
                 <div className="min-w-0">
                   <p className="font-black">
@@ -399,7 +400,7 @@ export default function Checkout() {
                 با پرداخت، <button className="underline">قوانین و مقررات</button> را می‌پذیرید.
                 {isLaravelConfigured()
                   ? "مبلغ نهایی توسط سرور محاسبه می‌شود."
-                  : "این نسخه، شبیه‌ساز درگاه پرداخت است."}
+                  : "مبلغ نهایی هنگام تأیید پرداخت محاسبه می‌شود."}
               </p>
             </div>
           </aside>
@@ -407,25 +408,27 @@ export default function Checkout() {
       )}
 
       {/* gateway modal */}
-      <Modal open={gate === "processing"} onClose={() => {}} title="درگاه پرداخت (شبیه‌ساز)">
+      <Modal open={gate === "processing"} onClose={() => {}} title="درگاه پرداخت">
         <div className="flex flex-col items-center gap-4 py-6 text-center">
           <span className="grid h-16 w-16 animate-pulse-soft place-items-center rounded-full bg-neon/15 text-neon">
             <CreditCard size={28} />
           </span>
           <p className="text-sm leading-7 text-muted">
-            در حال انتقال به درگاه امن زرین‌پال…
+            در حال انتقال به درگاه امن پرداخت…
             <br />
             مبلغ {price(serverPrice !== null ? serverPrice : Math.max(0, finalPrice))} از حساب شما
             کسر می‌شود.
           </p>
-          <div className="flex gap-3">
-            <button onClick={() => setGate("failed")} className="btn-danger btn-sm">
-              <XCircle size={14} /> شبیه‌سازی پرداخت ناموفق
-            </button>
-            <button onClick={() => setGate("cancelled")} className="btn-ghost btn-sm">
-              انصراف از پرداخت
-            </button>
-          </div>
+          {!backendEnabled() && (
+            <div className="flex gap-3">
+              <button onClick={() => setGate("failed")} className="btn-danger btn-sm">
+                <XCircle size={14} /> پرداخت ناموفق
+              </button>
+              <button onClick={() => setGate("cancelled")} className="btn-ghost btn-sm">
+                انصراف از پرداخت
+              </button>
+            </div>
+          )}
         </div>
       </Modal>
 
@@ -466,9 +469,7 @@ export default function Checkout() {
           <Banner
             kind={backendPending ? "info" : "success"}
             title={
-              backendPending
-                ? "سفارش ثبت شد و منتظر تأیید درگاه است"
-                : "پرداخت با موفقیت انجام شد 🎉"
+              backendPending ? "سفارش ثبت شد و منتظر تأیید درگاه است" : "پرداخت با موفقیت انجام شد"
             }
             text={
               backendPending

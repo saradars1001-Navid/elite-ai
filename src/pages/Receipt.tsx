@@ -1,3 +1,4 @@
+import { PackGlyph } from "../lib/entityIcons";
 import { Link, useParams } from "react-router-dom";
 import { CheckCircle2, Printer, ArrowRight, ShieldCheck, ReceiptText } from "lucide-react";
 import { useApp } from "../lib/store";
@@ -46,7 +47,7 @@ export default function Receipt() {
         <div className="space-y-4 p-6 sm:p-8">
           <div className="flex items-start gap-3.5">
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-navy text-2xl">
-              {ch?.icon ?? "📦"}
+              <PackGlyph id={ch?.id} size={18} />
             </span>
             <div>
               <p className="font-black">

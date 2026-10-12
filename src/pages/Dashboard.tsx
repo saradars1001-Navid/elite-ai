@@ -1,12 +1,13 @@
-import { Link, useNavigate } from "react-router-dom";
+import { ChGlyph, BadgeGlyph } from "../lib/entityIcons";
+import { Link } from "react-router-dom";
 import {
+  Lock,
   PlayCircle,
   BadgePercent,
   Flame,
   Trophy,
   Award,
   Bell,
-  ArrowLeft,
   BookOpen,
   Star,
   Clock,
@@ -17,7 +18,7 @@ import {
 import { BADGES } from "../lib/data";
 import { useApp } from "../lib/store";
 import { cls, hours, percent, price, toFa, formatDate } from "../lib/utils";
-import { Progress, Avatar, LevelCard, WeeklyChallengeWidget } from "../components/ui";
+import { Avatar, LevelCard, WeeklyChallengeWidget } from "../components/ui";
 
 export default function Dashboard() {
   const {
@@ -35,7 +36,6 @@ export default function Dashboard() {
     claimWeeklyReward,
     chapters,
   } = useApp();
-  const navigate = useNavigate();
   if (!user) return null;
 
   const purchased = state.purchases.filter((p) => p.status === "موفق");
@@ -91,7 +91,6 @@ export default function Dashboard() {
                   : new Date().getHours() < 18
                     ? "ظهر بخیر"
                     : "عصر بخیر"}{" "}
-                👋
               </p>
               <h1 className="text-xl font-black sm:text-2xl">{user.name}</h1>
               <p className="mt-0.5 text-xs text-muted">
@@ -110,59 +109,57 @@ export default function Dashboard() {
       <LevelCard xp={xp} level={level} />
 
       {/* stats */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="tg-group max-lg:-mx-1">
         {stats.map((s) => (
-          <div key={s.label} className="card p-4 sm:p-5">
-            <span className={cls("mb-3 grid h-10 w-10 place-items-center rounded-lg", s.tone)}>
+          <div key={s.label} className="tg-row">
+            <span className={cls("tg-row-icon !h-10 !w-10", s.tone)}>
               <s.icon size={19} />
             </span>
-            <p className="text-xl font-black sm:text-2xl">{s.value}</p>
-            <p className="mt-0.5 text-xs text-muted">{s.label}</p>
+            <span className="tg-row-body">
+              <span className="tg-row-title">{s.label}</span>
+            </span>
+            <span className="tg-row-value text-base font-black text-text">{s.value}</span>
           </div>
         ))}
       </div>
 
       {/* continue learning */}
       {continueTarget && (
-        <div className="card overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line/60 bg-surface2/50 px-5 py-4 sm:px-6">
-            <div>
-              <h2 className="font-bold">ادامه یادگیری</h2>
-              <p className="mt-0.5 text-xs text-muted">از جایی که بودید ادامه دهید</p>
-            </div>
-            <Link to="/chapters" className="btn-ghost btn-sm">
-              همه فصل‌ها <ArrowLeft size={14} />
+        <section>
+          <div className="tg-group-title flex items-center justify-between max-lg:mx-3">
+            <span>ادامه یادگیری</span>
+            <Link to="/chapters" className="text-xs font-medium text-sky">
+              همه فصل‌ها
             </Link>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-5 p-5 sm:p-6">
-            <div className="min-w-0 flex-1">
-              <div className="mb-1.5 flex flex-wrap items-center gap-2 text-xs">
-                <span className="text-sky">
-                  فصل {toFa(chapters.findIndex((c) => c.id === continueTarget.chapterId) + 1)}
-                </span>
-                <span className="text-muted">•</span>
-                <span className="text-muted">
+          <div className="tg-group max-lg:-mx-1">
+            <Link
+              to={`/chapters/${continueTarget.chapterId}/lessons/${continueTarget.lessonId}`}
+              className="tg-row"
+            >
+              <span className="tg-row-icon !h-11 !w-11 bg-neon/10 text-neon">
+                <PlayCircle size={20} />
+              </span>
+              <span className="tg-row-body">
+                <span className="tg-row-title">
                   {lastCompleted?.title || "درس ۱: هوش مصنوعی چیست؟"}
                 </span>
-              </div>
-              <div className="mb-2 flex items-center justify-between text-xs text-muted">
-                <span>پیشرفت فصل</span>
-                <span className="font-bold text-sky">
-                  {percent(chapterProgress(continueTarget.chapterId))}
+                <span className="tg-row-sub">
+                  فصل {toFa(chapters.findIndex((c) => c.id === continueTarget.chapterId) + 1)} ·
+                  پیشرفت {percent(chapterProgress(continueTarget.chapterId))}
                 </span>
-              </div>
-              <Progress value={chapterProgress(continueTarget.chapterId)} className="max-w-sm" />
-            </div>
-            <button
-              onClick={() =>
-                navigate(`/chapters/${continueTarget.chapterId}/lessons/${continueTarget.lessonId}`)
-              }
-              className="btn-primary btn-lg shrink-0"
-            >
-              <PlayCircle size={19} /> ادامه یادگیری
-            </button>
+                <span className="tg-rail">
+                  <span
+                    style={{
+                      width: `${Math.min(100, Math.max(0, chapterProgress(continueTarget.chapterId)))}%`,
+                    }}
+                  />
+                </span>
+              </span>
+              <ChevronLeft size={16} className="shrink-0 text-locked" />
+            </Link>
           </div>
-        </div>
+        </section>
       )}
 
       {/* weekly challenge widget */}
@@ -170,10 +167,10 @@ export default function Dashboard() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* owned chapters */}
-        <section className="card p-5 sm:p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-bold">فصل‌های من</h2>
-            <Link to="/chapters" className="text-xs font-medium text-sky hover:underline">
+        <section>
+          <div className="tg-group-title flex items-center justify-between max-lg:mx-3">
+            <span>فصل‌های من</span>
+            <Link to="/chapters" className="text-xs font-medium text-sky">
               مشاهده همه
             </Link>
           </div>
@@ -185,26 +182,23 @@ export default function Dashboard() {
               </Link>
             </p>
           ) : (
-            <div className="space-y-3">
+            <div className="tg-group max-lg:-mx-1">
               {ownedChapters.slice(0, 3).map((ch) => (
-                <Link
-                  key={ch.id}
-                  to={`/chapters/${ch.id}`}
-                  className="flex items-center gap-3 rounded-lg border border-line/50 bg-surface2/40 px-3.5 py-3 transition-colors hover:border-neon/40"
-                >
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-navy text-lg">
-                    {ch.icon}
+                <Link key={ch.id} to={`/chapters/${ch.id}`} className="tg-row">
+                  <span className="tg-row-icon !h-10 !w-10 bg-navy">
+                    <ChGlyph id={ch.id} size={18} />
                   </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold">{ch.title}</p>
-                    <div className="mt-1 flex items-center gap-2">
-                      <Progress value={chapterProgress(ch.id)} className="h-1.5 flex-1" />
-                      <span className="shrink-0 text-[10px] text-muted">
-                        {percent(chapterProgress(ch.id))}
-                      </span>
-                    </div>
-                  </div>
-                  <ChevronLeft size={16} className="text-locked" />
+                  <span className="tg-row-body">
+                    <span className="tg-row-title">{ch.title}</span>
+                    <span className="tg-rail">
+                      <span
+                        style={{
+                          width: `${Math.min(100, Math.max(0, chapterProgress(ch.id)))}%`,
+                        }}
+                      />
+                    </span>
+                  </span>
+                  <span className="tg-row-value">{percent(chapterProgress(ch.id))}</span>
                 </Link>
               ))}
             </div>
@@ -212,42 +206,34 @@ export default function Dashboard() {
         </section>
 
         {/* suggested */}
-        <section className="card p-5 sm:p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-bold">پیشنهادی برای شما</h2>
-            <Link to="/chapters" className="text-xs font-medium text-sky hover:underline">
+        <section>
+          <div className="tg-group-title flex items-center justify-between max-lg:mx-3">
+            <span>پیشنهادی برای شما</span>
+            <Link to="/chapters" className="text-xs font-medium text-sky">
               همه فصل‌ها
             </Link>
           </div>
-          <div className="space-y-3">
+          <div className="tg-group max-lg:-mx-1">
             {suggested.slice(0, 3).map((ch) => (
-              <Link
-                key={ch.id}
-                to={`/chapters/${ch.id}`}
-                className="flex items-center justify-between gap-3 rounded-lg border border-line/50 bg-surface2/40 px-3.5 py-3 transition-colors hover:border-neon/40"
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-navy text-lg">
-                    {ch.icon}
+              <Link key={ch.id} to={`/chapters/${ch.id}`} className="tg-row">
+                <span className="tg-row-icon !h-10 !w-10 bg-navy">
+                  <ChGlyph id={ch.id} size={18} />
+                </span>
+                <span className="tg-row-body">
+                  <span className="tg-row-title">{ch.title}</span>
+                  <span className="tg-row-sub flex items-center gap-1">
+                    <Clock size={11} /> {hours(ch.duration)} •{" "}
+                    <Star size={11} className="fill-warn text-warn" />
+                    {toFa(ch.rating)}
                   </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold">{ch.title}</p>
-                    <p className="mt-0.5 flex items-center gap-1 text-[11px] text-muted">
-                      <Clock size={11} /> {hours(ch.duration)} •{" "}
-                      <Star size={11} className="fill-warn text-warn" />
-                      {toFa(ch.rating)}
-                    </p>
-                  </div>
-                </div>
-                <span className="shrink-0 text-xs font-black text-neon">
+                </span>
+                <span className="tg-row-value font-black text-neon">
                   {ch.free ? "رایگان" : price(ch.price)}
                 </span>
               </Link>
             ))}
             {suggested.length === 0 && (
-              <p className="py-6 text-center text-sm text-muted">
-                همه فصل‌ها را در اختیار دارید! 🎉
-              </p>
+              <p className="py-6 text-center text-sm text-muted">همه فصل‌ها را در اختیار دارید!</p>
             )}
           </div>
         </section>
@@ -255,38 +241,38 @@ export default function Dashboard() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* exam scores */}
-        <section className="card p-5 sm:p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <Gauge size={17} className="text-sky" />
-            <h2 className="font-bold">نتایج آزمون‌ها</h2>
+        <section>
+          <div className="tg-group-title flex items-center gap-2 max-lg:mx-3">
+            <Gauge size={16} className="text-sky" />
+            <span>نتایج آزمون‌ها</span>
           </div>
           {state.examAttempts.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted">
               هنوز آزمونی نداده‌اید. بعد از تکمیل درس‌های هر فصل، در آزمون پایان فصل شرکت کنید.
             </p>
           ) : (
-            <div className="space-y-2.5">
+            <div className="tg-group max-lg:-mx-1">
               {state.examAttempts.slice(0, 4).map((a) => (
                 <Link
                   key={a.id}
                   to={`/chapters/${a.chapterId}/exam/result/${a.id}`}
-                  className="flex items-center justify-between rounded-lg border border-line/50 bg-surface2/40 px-3.5 py-3 transition-colors hover:border-neon/40"
+                  className="tg-row"
                 >
-                  <div>
-                    <p className="text-sm font-bold">{a.chapterTitle}</p>
-                    <p className="mt-0.5 text-[11px] text-muted">
+                  <span className="tg-row-body">
+                    <span className="tg-row-title">{a.chapterTitle}</span>
+                    <span className="tg-row-sub">
                       {toFa(a.correct)} صحیح • {toFa(a.wrong)} غلط • {formatDate(a.date)}
-                    </p>
-                  </div>
+                    </span>
+                  </span>
                   <span
                     className={cls(
-                      "chip",
+                      "chip shrink-0",
                       a.passed
                         ? "border border-teal/25 bg-teal/10 text-teal"
                         : "border border-danger/25 bg-danger/10 text-danger"
                     )}
                   >
-                    {a.score} از ۱۰۰
+                    {toFa(a.score)} از ۱۰۰
                   </span>
                 </Link>
               ))}
@@ -295,27 +281,28 @@ export default function Dashboard() {
         </section>
 
         {/* badges */}
-        <section className="card p-5 sm:p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <Award size={17} className="text-warn" />
-            <h2 className="font-bold">نشان‌ها و دستاوردها</h2>
+        <section>
+          <div className="tg-group-title flex items-center gap-2 max-lg:mx-3">
+            <Award size={16} className="text-warn" />
+            <span>نشان‌ها و دستاوردها</span>
           </div>
-          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+          <div className="tg-group max-lg:-mx-1">
             {BADGES.slice(0, 8).map((b) => {
               const earned = earnedBadges.includes(b.id);
               return (
-                <div
-                  key={b.id}
-                  title={b.description}
-                  className={cls(
-                    "flex flex-col items-center gap-1.5 rounded-lg border p-3 text-center transition-colors",
-                    earned
-                      ? "border-warn/30 bg-warn/10"
-                      : "border-line/50 bg-surface2/30 opacity-50"
-                  )}
-                >
-                  <span className="text-xl">{earned ? b.icon : "🔒"}</span>
-                  <span className="text-[10px] font-bold leading-4">{b.title}</span>
+                <div key={b.id} title={b.description} className="tg-row">
+                  <span
+                    className={cls(
+                      "tg-row-icon !h-10 !w-10 text-xl",
+                      earned ? "bg-warn/10" : "opacity-50"
+                    )}
+                  >
+                    {earned ? <BadgeGlyph id={b.id} size={18} /> : <Lock size={18} />}
+                  </span>
+                  <span className="tg-row-body">
+                    <span className={cls("tg-row-title", !earned && "text-muted")}>{b.title}</span>
+                    <span className="tg-row-sub">{b.description}</span>
+                  </span>
                 </div>
               );
             })}

@@ -15,7 +15,7 @@ import {
   FolderKanban,
 } from "lucide-react";
 import { useApp } from "../../lib/store";
-import { AdminHeader, Table, Td, Badge, Toggle } from "./AdminUI";
+import { AdminHeader, Table, Td, TRow, Badge, Toggle } from "./AdminUI";
 import { price, toFa, uid } from "../../lib/utils";
 import { Modal, Tabs } from "../../components/ui";
 import { exerciseTypeLabel } from "../../lib/data";
@@ -58,8 +58,8 @@ function emptyChapter(index: number): Chapter {
     price: 0,
     oldPrice: undefined,
     free: true,
-    icon: "📘",
-    gradient: "from-[#2F8CFF] to-[#57B8FF]",
+    icon: "",
+    gradient: "from-[#3B82F6] to-[#57B8FF]",
     prerequisites: [],
     outcome: [],
     completionRate: 0,
@@ -121,13 +121,13 @@ export default function AdminChapters() {
 
         {saved && (
           <div className="card mb-6 border border-teal/25 p-4 text-sm text-teal animate-fade-in">
-            ✓ تغییرات ذخیره و در سایت اعمال شد.
+            تغییرات ذخیره و در سایت اعمال شد.
           </div>
         )}
 
         <Table head={["فصل", "سطح", "درس‌ها", "تمرین‌ها", "قیمت", "وضعیت", "اقدامات"]}>
           {chapters.map((c) => (
-            <tr key={c.id} className="transition-colors hover:bg-surface2/30">
+            <TRow key={c.id}>
               <Td>
                 <div className="flex items-center gap-3">
                   <span className="grid h-9 w-9 place-items-center rounded-lg bg-navy text-lg">
@@ -198,7 +198,7 @@ export default function AdminChapters() {
                   </Link>
                 </div>
               </Td>
-            </tr>
+            </TRow>
           ))}
         </Table>
 
@@ -278,7 +278,7 @@ export default function AdminChapters() {
               <ArrowRight size={15} /> بازگشت
             </button>
             <button onClick={() => persist(draft)} className="btn-primary btn-md">
-              <Save size={15} /> ذخیره تغییرات {saved && "✓"}
+              <Save size={15} /> ذخیره تغییرات
             </button>
           </div>
         }

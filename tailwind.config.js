@@ -4,30 +4,44 @@ export default {
   theme: {
     extend: {
       colors: {
-        base: "#070B14",
-        surface: "#0D1422",
-        surface2: "#121C2E",
-        navy: "#101A2B",
-        neon: "#2F8CFF",
-        sky: "#57B8FF",
-        teal: "#20D6B5",
-        text: "#F5F7FA",
-        muted: "#9AA8BA",
-        line: "#223149",
-        locked: "#667085",
-        danger: "#F0445B",
-        warn: "#F5A623",
+        /* ── Telegram for Android (light / night) ────────────────────────────────────
+           Values live in CSS variables (src/index.css) as RGB triplets: light
+           by default, Telegram night under <html data-theme="dark">. The
+           <alpha-value> placeholder keeps every /10 opacity modifier working.
+           page    = grouped page background
+           surface = bars, cards, sheets
+           surface2= subtle fills, inputs, pressed rows
+           navy    = tinted band (footer, tiles)
+           line    = hairline separators
+           neon    = the single accent, spent only on real actions
+        ─────────────────────────────────────────────────────────────────── */
+        page: "rgb(var(--c-page) / <alpha-value>)",
+        surface: "rgb(var(--c-surface) / <alpha-value>)",
+        surface2: "rgb(var(--c-surface2) / <alpha-value>)",
+        navy: "rgb(var(--c-navy) / <alpha-value>)",
+        neon: "rgb(var(--c-neon) / <alpha-value>)",
+        sky: "rgb(var(--c-sky) / <alpha-value>)",
+        teal: "rgb(var(--c-teal) / <alpha-value>)",
+        text: "rgb(var(--c-text) / <alpha-value>)",
+        muted: "rgb(var(--c-muted) / <alpha-value>)",
+        line: "rgb(var(--c-line) / <alpha-value>)",
+        locked: "rgb(var(--c-locked) / <alpha-value>)",
+        danger: "rgb(var(--c-danger) / <alpha-value>)",
+        warn: "rgb(var(--c-warn) / <alpha-value>)",
       },
       fontFamily: {
         sans: ["Vazirmatn Variable", "Vazirmatn", "Tahoma", "sans-serif"],
       },
       borderRadius: {
-        DEFAULT: "8px",
+        DEFAULT: "10px",
       },
       boxShadow: {
-        glow: "0 0 24px rgba(47, 140, 255, 0.22)",
-        "glow-sm": "0 0 14px rgba(47, 140, 255, 0.18)",
-        card: "0 1px 0 rgba(255,255,255,0.03) inset, 0 8px 28px rgba(0,0,0,0.35)",
+        glow: "var(--shadow-glow)",
+        "glow-sm": "var(--shadow-glow-sm)",
+        card: "var(--shadow-card)",
+        bar: "var(--shadow-bar)",
+        /* the floating, translucent Telegram bottom bar */
+        float: "var(--shadow-float)",
       },
       animation: {
         "fade-in": "fadeIn .35s ease both",

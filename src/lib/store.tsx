@@ -287,7 +287,7 @@ interface AppContextValue {
   user: AppUser | null;
   /* auth */
   otpSent: boolean;
-  requestOtp: (phone: string) => Promise<{ ok: boolean; error?: string }>;
+  requestOtp: (phone: string) => Promise<{ ok: boolean; error?: string; debugCode?: string }>;
   verifyOtp: (
     code: string,
     name?: string
@@ -484,10 +484,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const appUser = await backendLoadUser();
       if (!alive) return;
       if (appUser) {
-        const access = await backendAccessMap(appUser.id);
+        // A flaky link right after /me must not cost us the session we just
+        // restored, and a failed /access must never replace the persisted map
+        // with an empty one — that would lock the user out of paid chapters.
+        const access = await backendAccessMap(appUser.id).catch(() => null);
         await backendTouchActivity(appUser.id);
         if (alive) {
-          setState((s) => ({ ...s, user: appUser, accessMap: access }));
+          setState((s) => ({ ...s, user: appUser, accessMap: access ?? s.accessMap }));
           void refreshWallet();
           const remoteNotifications = await backendLoadNotifications().catch(() => null);
           if (alive && remoteNotifications && remoteNotifications.items.length) {
@@ -539,7 +542,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // ── demo mode ──
     if (code !== "12345") {
-      return { ok: false, error: "کد واردشده صحیح نیست. کد آزمایشی: ۱۲۳۴۵" };
+      return {
+        ok: false,
+        error: import.meta.env.DEV
+          ? "کد واردشده صحیح نیست. کد حالت محلی: ۱۲۳۴۵"
+          : "کد واردشده صحیح نیست.",
+      };
     }
     const hadUser = !!user;
     setState((s) => {
@@ -964,7 +972,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                     {
                       id: uid("n"),
                       type: "quiz",
-                      title: "برد در مسابقه زنده 🏆",
+                      title: "برد در مسابقه زنده",
                       body: `در مسابقه ${r.mode === "1v1" ? "تک‌به‌تک" : "۴ نفره"} مقام اول را کسب کردید و ${xpGain} XP گرفتید.`,
                       createdAt: new Date().toISOString(),
                       read: false,
@@ -1440,7 +1448,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         amount,
         balanceAfter: s.walletBalance + amount,
         status: "completed",
-        description: "شارژ کیف پول (شبیه‌ساز)",
+        description: "شارژ کیف پول",
         createdAt: new Date().toISOString(),
       };
       return {

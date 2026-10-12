@@ -20,7 +20,7 @@ type SearchResult = { id: string; kind: SearchKind; title: string; subtitle: str
 const kindMeta: Record<SearchKind, { label: string; icon: typeof BookOpen; tone: string }> = {
   chapter: { label: "فصل آموزشی", icon: BookOpen, tone: "text-sky bg-sky/10" },
   lesson: { label: "درس", icon: FileText, tone: "text-teal bg-teal/10" },
-  tool: { label: "ابزار AI", icon: Wrench, tone: "text-[#A78BFA] bg-[#8B5CF6]/15" },
+  tool: { label: "ابزار AI", icon: Wrench, tone: "text-[#A78BFA] bg-[#7C3AED]/15" },
   post: { label: "پست کامیونیتی", icon: MessageCircle, tone: "text-warn bg-warn/10" },
 };
 
@@ -28,7 +28,7 @@ function normalize(value: string): string {
   return value.toLocaleLowerCase().replace(/ي/g, "ی").replace(/ك/g, "ک").trim();
 }
 
-export default function GlobalSearch() {
+export default function GlobalSearch({ variant = "icon" }: { variant?: "icon" | "row" } = {}) {
   const { chapters, aiTools, communityPosts } = useApp();
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -154,19 +154,30 @@ export default function GlobalSearch() {
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="group flex h-9 items-center gap-2 rounded-lg border border-line/60 bg-surface2/60 px-2.5 text-muted transition-colors hover:border-neon/50 hover:text-text lg:w-44 lg:justify-between lg:px-3"
-        aria-label="جست‌وجوی سراسری"
-      >
-        <span className="flex items-center gap-2">
-          <Search size={16} />
-          <span className="hidden text-xs lg:inline">جست‌وجو در آکادمی</span>
-        </span>
-        <kbd className="hidden rounded border border-line bg-surface px-1.5 py-0.5 text-[10px] text-locked lg:inline">
-          Ctrl K
-        </kbd>
-      </button>
+      {variant === "row" ? (
+        <button onClick={() => setOpen(true)} className="tg-row" aria-label="جست‌وجوی سراسری">
+          <span className="tg-row-icon">
+            <Search size={18} />
+          </span>
+          <span className="tg-row-body">
+            <span className="tg-row-title">جست‌وجو در آکادمی</span>
+          </span>
+        </button>
+      ) : (
+        <button
+          onClick={() => setOpen(true)}
+          className="group flex h-9 items-center gap-2 rounded-lg border border-line/60 bg-surface2/60 px-2.5 text-muted transition-colors hover:border-neon/50 hover:text-text lg:w-44 lg:justify-between lg:px-3"
+          aria-label="جست‌وجوی سراسری"
+        >
+          <span className="flex items-center gap-2">
+            <Search size={16} />
+            <span className="hidden text-xs lg:inline">جست‌وجو در آکادمی</span>
+          </span>
+          <kbd className="hidden rounded border border-line bg-surface px-1.5 py-0.5 text-[10px] text-locked lg:inline">
+            Ctrl K
+          </kbd>
+        </button>
+      )}
 
       {open && (
         <div className="fixed inset-0 z-[90] flex items-start justify-center px-3 pt-[10vh] sm:px-6">

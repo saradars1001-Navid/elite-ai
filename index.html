@@ -5,13 +5,24 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#070B14" />
+    <meta name="theme-color" content="#FFFFFF" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="آکادمی ایلیت" />
     <meta name="description" content="آکادمی ایلیت — مسیر تعاملی یادگیری هوش مصنوعی" />
     <title>Elite AI Academy | آکادمی ایلیت</title>
+    <script>
+      // Apply the saved night-mode choice before first paint — no light flash.
+      try {
+        if (localStorage.getItem("eaa:theme") === "dark") {
+          document.documentElement.setAttribute("data-theme", "dark");
+          document.querySelector('meta[name="theme-color"]').content = "#17212B";
+        }
+      } catch (e) {
+        /* private mode: stay on light */
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

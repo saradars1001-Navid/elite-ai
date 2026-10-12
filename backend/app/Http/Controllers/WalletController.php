@@ -56,7 +56,7 @@ class WalletController extends Controller
         ]);
 
         $referenceId = 'wallet-'.$transaction->id;
-        $callbackUrl = rtrim((string) env('APP_URL', ''), '/').'/api/v1/wallet/callback?tx='.$transaction->id;
+        $callbackUrl = rtrim((string) config('app.url'), '/').'/api/v1/wallet/callback?tx='.$transaction->id;
         try {
             $result = $this->gateway->initiate($amount, 'شارژ کیف پول ایلیت', $callbackUrl, $referenceId);
             $transaction->update(['gateway_ref' => $result['ref']]);
@@ -77,7 +77,7 @@ class WalletController extends Controller
     /** Public gateway redirect after a charge; verify server-side, then credit the wallet. */
     public function callback(Request $request): RedirectResponse
     {
-        $frontend = rtrim((string) env('FRONTEND_URL', ''), '/').'/profile?wallet=';
+        $frontend = rtrim((string) config('app.frontend_url'), '/').'/profile?wallet=';
         $transaction = WalletTransaction::find((int) $request->query('tx'));
         $eventId = PaymentEventLogger::start('callback', 'payment', $transaction ? 'wallet' : null, $transaction ? 'wallet-'.$transaction->id : null, $request->query());
         if (! $transaction || $transaction->status !== 'pending') {

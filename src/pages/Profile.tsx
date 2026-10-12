@@ -1,3 +1,4 @@
+import { BadgeGlyph, PackGlyph } from "../lib/entityIcons";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -125,55 +126,74 @@ export default function Profile() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      {/* header card */}
-      <div className="card relative overflow-hidden p-6 sm:p-8">
-        <div className="bg-grid absolute inset-0 opacity-50" />
-        <div className="absolute -left-16 -top-16 h-48 w-48 rounded-full bg-neon/10 blur-[70px]" />
-        <div className="relative flex flex-wrap items-center gap-5">
-          <Avatar name={user.name} size="lg" />
-          <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-black sm:text-2xl">{user.name}</h1>
-            <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
-              <Smartphone size={14} /> <span dir="ltr">{toFa(user.phone)}</span>
-              {user.role === "admin" && (
-                <span className="chip border border-warn/25 bg-warn/10 text-warn">مدیر</span>
-              )}
-            </p>
-            <p className="mt-1 text-xs text-muted">عضو از {formatDate(user.joinedAt)}</p>
-          </div>
-          <div className="flex gap-3">
-            <div className="rounded-lg border border-line/60 bg-surface2/50 px-4 py-2.5 text-center">
-              <p className="flex items-center justify-center gap-1 text-lg font-black text-warn">
-                <Trophy size={16} /> {toFa(user.points)}
-              </p>
-              <p className="text-[11px] text-muted">امتیاز کل</p>
-            </div>
-            <div className="rounded-lg border border-line/60 bg-surface2/50 px-4 py-2.5 text-center">
-              <p className="flex items-center justify-center gap-1 text-lg font-black text-[#F97316]">
-                <Flame size={16} /> {toFa(user.streakDays)}
-              </p>
-              <p className="text-[11px] text-muted">روز پیاپی</p>
-            </div>
-          </div>
+    <div className="mx-auto max-w-[720px] space-y-4">
+      {/* profile header */}
+      <header className="flex items-center gap-4 px-1 pt-2">
+        <Avatar name={user.name} size="lg" />
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-[22px] font-semibold leading-7">{user.name}</h1>
+          <p className="mt-0.5 flex items-center gap-1.5 text-[13px] text-muted">
+            <Smartphone size={13} /> <span dir="ltr">{toFa(user.phone)}</span>
+          </p>
+          <p className="mt-0.5 text-[13px] text-muted">عضو از {formatDate(user.joinedAt)}</p>
         </div>
-        <div className="relative mt-6 flex flex-wrap gap-2">
-          <button onClick={() => navigate("/profile#support")} className="btn-ghost btn-sm">
-            <Headphones size={14} /> پشتیبانی
-          </button>
-          <button onClick={() => navigate("/profile#legal")} className="btn-ghost btn-sm">
-            <FileText size={14} /> قوانین و حریم خصوصی
-          </button>
-          <button
-            onClick={() => {
-              logout();
-              navigate("/");
-            }}
-            className="btn-danger btn-sm mr-auto"
-          >
-            <LogOut size={14} /> خروج از حساب
-          </button>
+        {user.role === "admin" && (
+          <span className="chip border border-warn/25 bg-warn/10 text-warn">مدیر</span>
+        )}
+      </header>
+
+      {/* account */}
+      <div className="tg-group lg:rounded-xl lg:shadow-card">
+        <div className="tg-row">
+          <span className="tg-row-icon text-warn">
+            <Trophy size={19} />
+          </span>
+          <span className="tg-row-body">
+            <span className="tg-row-title">امتیاز کل</span>
+          </span>
+          <span className="tg-row-value">{toFa(user.points)}</span>
         </div>
+        <div className="tg-row">
+          <span className="tg-row-icon text-neon">
+            <Flame size={19} />
+          </span>
+          <span className="tg-row-body">
+            <span className="tg-row-title">روزهای پیاپی</span>
+          </span>
+          <span className="tg-row-value">{toFa(user.streakDays)}</span>
+        </div>
+        <button onClick={() => navigate("/profile#support")} className="tg-row">
+          <span className="tg-row-icon">
+            <Headphones size={19} />
+          </span>
+          <span className="tg-row-body">
+            <span className="tg-row-title">پشتیبانی</span>
+          </span>
+          <ChevronLeft size={18} className="shrink-0 text-locked" />
+        </button>
+        <button onClick={() => navigate("/profile#legal")} className="tg-row">
+          <span className="tg-row-icon">
+            <FileText size={19} />
+          </span>
+          <span className="tg-row-body">
+            <span className="tg-row-title">قوانین و حریم خصوصی</span>
+          </span>
+          <ChevronLeft size={18} className="shrink-0 text-locked" />
+        </button>
+        <button
+          onClick={() => {
+            logout();
+            navigate("/");
+          }}
+          className="tg-row"
+        >
+          <span className="tg-row-icon text-danger">
+            <LogOut size={19} />
+          </span>
+          <span className="tg-row-body">
+            <span className="tg-row-title text-danger">خروج از حساب</span>
+          </span>
+        </button>
       </div>
 
       {/* level & xp */}
@@ -197,26 +217,23 @@ export default function Profile() {
         </div>
       )}
 
-      {/* wallet card */}
-      <div className="card relative overflow-hidden p-5 sm:p-6">
-        <div className="absolute -left-12 -top-12 h-36 w-36 rounded-full bg-teal/10 blur-[60px]" />
-        <div className="relative flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <span className="grid h-12 w-12 place-items-center rounded-xl bg-teal/15 text-teal">
-              <Wallet size={22} />
-            </span>
-            <div>
-              <p className="text-xs text-muted">موجودی کیف پول</p>
-              <p className="text-2xl font-black text-teal">{price(walletBalance)}</p>
-            </div>
-          </div>
-          <button onClick={() => setChargeOpen((v) => !v)} className="btn-primary btn-md">
-            <Plus size={16} /> شارژ کیف پول
+      {/* wallet */}
+      <div className="tg-group lg:rounded-xl lg:shadow-card">
+        <div className="tg-row">
+          <span className="tg-row-icon text-teal">
+            <Wallet size={19} />
+          </span>
+          <span className="tg-row-body">
+            <span className="tg-row-title">کیف پول</span>
+            <span className="tg-row-sub">موجودی {price(walletBalance)}</span>
+          </span>
+          <button onClick={() => setChargeOpen((v) => !v)} className="btn-primary btn-sm shrink-0">
+            <Plus size={15} /> شارژ
           </button>
         </div>
 
         {chargeOpen && (
-          <div className="relative mt-5 rounded-lg border border-line/60 bg-surface2/40 p-4 animate-fade-in">
+          <div className="animate-fade-in border-t border-line px-4 py-4">
             <p className="mb-3 text-sm font-bold">مبلغ شارژ (تومان)</p>
             <div className="flex flex-wrap gap-2">
               {[200000, 500000, 1000000, 2000000].map((p) => (
@@ -277,46 +294,46 @@ export default function Profile() {
 
       {/* live match stats */}
       {matchStats.total > 0 && (
-        <div className="card flex flex-wrap items-center justify-between gap-4 p-5">
-          <div className="flex items-center gap-3.5">
-            <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#8B5CF6]/15 text-[#A78BFA]">
-              <Trophy size={21} />
+        <div className="tg-group lg:rounded-xl lg:shadow-card">
+          <div className="tg-row">
+            <span className="tg-row-icon text-neon">
+              <Trophy size={19} />
             </span>
-            <div>
-              <p className="font-bold">مسابقات زنده</p>
-              <p className="mt-0.5 text-xs text-muted">
-                {toFa(matchStats.total)} مسابقه • {toFa(matchStats.wins)} برد • بهترین مقام:{" "}
+            <span className="tg-row-body">
+              <span className="tg-row-title">مسابقات زنده</span>
+              <span className="tg-row-sub">
+                {toFa(matchStats.total)} مسابقه · {toFa(matchStats.wins)} برد · بهترین مقام{" "}
                 {toFa(matchStats.best ?? "")}
-              </p>
-            </div>
+              </span>
+            </span>
+            <Link to="/quiz/live" className="btn-secondary btn-sm shrink-0">
+              مسابقه جدید
+            </Link>
           </div>
-          <Link to="/quiz/live" className="btn-secondary btn-md">
-            <Trophy size={15} /> مسابقه جدید
-          </Link>
         </div>
       )}
 
       {/* discount banner */}
       {activeDiscount && (
-        <div className="card flex flex-wrap items-center justify-between gap-4 border border-teal/25 p-5">
-          <div className="flex items-center gap-3.5">
-            <span className="grid h-11 w-11 place-items-center rounded-xl bg-teal/15 text-teal">
-              <BadgePercent size={21} />
+        <div className="tg-group lg:rounded-xl lg:shadow-card">
+          <div className="tg-row">
+            <span className="tg-row-icon text-teal">
+              <BadgePercent size={19} />
             </span>
-            <div>
-              <p className="font-bold text-teal">
-                تخفیف عملکردی فعال: ٪{toFa(activeDiscount.percent)}
-              </p>
-              <p className="mt-0.5 text-xs text-muted">
-                برای فصل{" "}
-                {toFa(chapters.find((c) => c.id === activeDiscount.chapterId)?.index ?? "")} — معتبر
-                تا {formatDate(activeDiscount.expiresAt)} — غیرقابل انتقال
-              </p>
-            </div>
+            <span className="tg-row-body">
+              <span className="tg-row-title">تخفیف عملکردی ٪{toFa(activeDiscount.percent)}</span>
+              <span className="tg-row-sub">
+                فصل {toFa(chapters.find((c) => c.id === activeDiscount.chapterId)?.index ?? "")} ·{" "}
+                تا {formatDate(activeDiscount.expiresAt)}
+              </span>
+            </span>
+            <Link
+              to={`/checkout/${activeDiscount.chapterId}`}
+              className="btn-success btn-sm shrink-0"
+            >
+              استفاده
+            </Link>
           </div>
-          <Link to={`/checkout/${activeDiscount.chapterId}`} className="btn-success btn-md">
-            استفاده از تخفیف
-          </Link>
         </div>
       )}
 
@@ -339,7 +356,9 @@ export default function Profile() {
                     : "border-line/40 bg-surface2/30 opacity-45"
                 )}
               >
-                <span className="text-2xl">{earned ? b.icon : "🔒"}</span>
+                <span className="text-2xl">
+                  {earned ? <BadgeGlyph id={b.id} size={22} /> : <Lock size={22} />}
+                </span>
                 <span className="text-[10px] font-bold leading-4">{b.title}</span>
               </div>
             );
@@ -371,7 +390,7 @@ export default function Profile() {
               >
                 <div className="flex items-center gap-3">
                   <span className="grid h-11 w-11 place-items-center rounded-lg bg-navy text-lg">
-                    {chapters.find((c) => c.id === p.chapterId)?.icon ?? "📦"}
+                    <PackGlyph id={chapters.find((c) => c.id === p.chapterId)?.id} size={18} />
                   </span>
                   <div>
                     <p className="font-bold">{p.chapterTitle}</p>
@@ -659,7 +678,7 @@ export default function Profile() {
             state.quizAttempts.map((q) => (
               <div key={q.id} className="card flex items-center justify-between gap-4 p-4">
                 <div className="flex items-center gap-3">
-                  <span className="grid h-10 w-10 place-items-center rounded-lg bg-surface2 text-[#8B5CF6]">
+                  <span className="grid h-10 w-10 place-items-center rounded-lg bg-surface2 text-[#7C3AED]">
                     <Gamepad2 size={17} />
                   </span>
                   <div>

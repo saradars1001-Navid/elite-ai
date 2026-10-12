@@ -1,6 +1,7 @@
-import React, { useEffect } from "react";
-import { Star, X, Sparkles, CheckCircle2 } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Star, X, Sparkles, CheckCircle2, Trophy } from "lucide-react";
 import { cls, toFa } from "../lib/utils";
+import { LevelGlyph } from "../lib/entityIcons";
 import type { LevelInfo, WeeklyChallengeDef } from "../lib/data";
 
 /* ─────────────────────────────── Logo ──────────────────────────────────── */
@@ -48,7 +49,7 @@ export function Avatar({
   };
   const parts = name.trim().split(/\s+/);
   const ini = (parts[0]?.[0] ?? "؟") + (parts[1]?.[0] ?? "");
-  const c = color || "#2F8CFF";
+  const c = color || "#3B82F6";
   return (
     <span className="relative inline-flex shrink-0">
       <span
@@ -58,7 +59,7 @@ export function Avatar({
         {ini}
       </span>
       {online && (
-        <span className="absolute -bottom-0.5 -left-0.5 h-3 w-3 rounded-full border-2 border-base bg-teal" />
+        <span className="absolute -bottom-0.5 -left-0.5 h-3 w-3 rounded-full border-2 border-page bg-teal" />
       )}
     </span>
   );
@@ -116,6 +117,10 @@ export function Modal({
   children: React.ReactNode;
   wide?: boolean;
 }) {
+  const [dragY, setDragY] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const dragRef = useRef<{ id: number; startY: number } | null>(null);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -127,26 +132,91 @@ export function Modal({
     };
   }, [open, onClose]);
 
+  // The sheet offset always starts clean.
+  useEffect(() => {
+    setDragY(0);
+    setDragging(false);
+    dragRef.current = null;
+  }, [open]);
+
   if (!open) return null;
+
+  // Dragging only makes sense while the dialog is a bottom sheet on phones.
+  const isSheet = () =>
+    typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches;
+
+  const onGrabStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isSheet()) return;
+    dragRef.current = { id: e.pointerId, startY: e.clientY };
+    setDragging(true);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // The pointer can already be gone (e.g. a very quick tap); dragging
+      // still works through the element's own pointermove events.
+    }
+  };
+
+  const onGrabMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current;
+    if (!d || d.id !== e.pointerId) return;
+    setDragY(Math.max(0, e.clientY - d.startY));
+  };
+
+  const onGrabEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current;
+    if (!d || d.id !== e.pointerId) return;
+    dragRef.current = null;
+    setDragging(false);
+    const dismissed = dragY > 110;
+    setDragY(0);
+    if (dismissed) onClose();
+  };
+
+  const dragged = dragY > 0;
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center">
       <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-fade-in"
+        className={cls("absolute inset-0 bg-black/45", !dragged && "animate-fade-in")}
+        style={{
+          opacity: dragged ? Math.max(0.12, 1 - dragY / 320) : undefined,
+          transition: dragging ? "none" : "opacity .28s ease",
+        }}
         onClick={onClose}
       />
       <div
         className={cls(
-          "relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-line bg-surface shadow-card animate-slide-up",
-          wide ? "sm:max-w-2xl" : "sm:max-w-md"
+          "relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-surface shadow-card sm:rounded-xl sm:border sm:border-line",
+          wide ? "sm:max-w-2xl" : "sm:max-w-md",
+          !dragging && "animate-slide-up"
         )}
+        style={{
+          transform: dragged ? `translateY(${dragY}px)` : undefined,
+          transition: dragging ? "none" : "transform .28s cubic-bezier(.2,.8,.2,1)",
+        }}
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line/60 bg-surface/95 px-5 py-4 backdrop-blur">
-          <h3 className="font-bold">{title}</h3>
-          <button onClick={onClose} className="btn-ghost btn-sm !px-2" aria-label="بستن">
-            <X size={18} />
-          </button>
+        {/* grip + header double as the grab area on phones */}
+        <div
+          className="touch-none sm:touch-auto"
+          onPointerDown={onGrabStart}
+          onPointerMove={onGrabMove}
+          onPointerUp={onGrabEnd}
+          onPointerCancel={onGrabEnd}
+        >
+          <div className="tg-sheet-grip sm:hidden" />
+          <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3">
+            <h3 className="text-[17px] font-semibold">{title}</h3>
+            <button
+              onClick={onClose}
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-surface2"
+              aria-label="بستن"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="p-4 sm:p-5">{children}</div>
       </div>
     </div>
   );
@@ -164,43 +234,36 @@ export function LevelCard({
   compact?: boolean;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-xl border border-neon/25 bg-gradient-to-bl from-navy via-surface to-surface p-5">
-      <div className="absolute -left-10 -top-10 h-32 w-32 rounded-full bg-neon/10 blur-3xl" />
-      <div className="absolute -bottom-12 -right-8 h-28 w-28 rounded-full bg-teal/10 blur-3xl" />
-      <div className="relative flex items-center gap-4">
-        <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-neon/30 bg-neon/10 text-3xl shadow-glow-sm">
-          {level.icon}
+    <div className="rounded-xl bg-surface p-4 shadow-card">
+      <div className="flex items-center gap-3">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-neon/10">
+          <LevelGlyph level={level.level} size={20} />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="chip border border-neon/25 bg-neon/10 text-sky">
-              سطح {toFa(level.level)}
+          <div className="flex items-center justify-between gap-2">
+            <span className="truncate text-[15px] font-semibold">
+              سطح {toFa(level.level)} · {level.title}
             </span>
-            <span className="text-sm font-black">{level.title}</span>
-            {level.nextTitle && !compact && (
-              <span className="text-[11px] text-locked">بعدی: {level.nextTitle}</span>
+            <span className="shrink-0 text-[13px] font-medium text-sky">
+              {toFa(Math.round(level.progress))}٪
+            </span>
+          </div>
+          <div className="mt-0.5 flex items-center justify-between gap-2 text-[12px] text-muted">
+            <span>{toFa(xp)} امتیاز تجربه</span>
+            {!compact && level.nextMinXp !== null && (
+              <span className="shrink-0">
+                {toFa(level.xpIntoLevel)} از {toFa(level.xpNeeded)} تا سطح بعد
+              </span>
             )}
           </div>
-          {!compact && (
-            <>
-              <div className="mt-2.5 flex items-center justify-between text-[11px] text-muted">
-                <span>{toFa(xp)} XP تجربه</span>
-                {level.nextMinXp !== null && (
-                  <span>
-                    {toFa(level.xpIntoLevel)} از {toFa(level.xpNeeded)} تا سطح بعد
-                  </span>
-                )}
-              </div>
-              <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-surface2">
-                <div
-                  className="h-full rounded-full bg-gradient-to-l from-neon to-teal transition-all duration-700"
-                  style={{ width: `${level.progress}%` }}
-                />
-              </div>
-            </>
-          )}
+          <div className="tg-rail">
+            <span style={{ width: `${level.progress}%` }} />
+          </div>
         </div>
       </div>
+      {!compact && level.nextTitle && (
+        <p className="mt-2 text-[12px] text-muted">سطح بعدی: {level.nextTitle}</p>
+      )}
     </div>
   );
 }
@@ -220,7 +283,7 @@ export function WeeklyChallengeWidget({
     <section className="card p-5 sm:p-6">
       <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 font-bold">
-          <span className="text-lg">🏆</span> چالش هفتگی
+          <Trophy size={16} /> چالش هفتگی
         </h2>
         <span className="text-[11px] text-muted">
           {toFa(done)} از {toFa(challenges.length)} چالش تکمیل‌شده
@@ -230,7 +293,7 @@ export function WeeklyChallengeWidget({
         <Progress
           value={overall}
           className="flex-1"
-          color="bg-gradient-to-l from-[#8B5CF6] to-neon"
+          color="bg-gradient-to-l from-[#7C3AED] to-neon"
         />
         <span className="shrink-0 text-xs font-bold text-[#A78BFA]">{toFa(overall)}٪</span>
       </div>
@@ -288,13 +351,13 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="card flex flex-col items-center gap-3 px-6 py-12 text-center animate-fade-in">
-      <span className="grid h-14 w-14 place-items-center rounded-full bg-surface2 text-neon">
+    <div className="flex flex-col items-center gap-2.5 rounded-xl bg-surface px-6 py-12 text-center animate-fade-in">
+      <span className="grid h-14 w-14 place-items-center rounded-full bg-surface2 text-muted">
         {icon}
       </span>
-      <h4 className="font-bold">{title}</h4>
-      {text && <p className="max-w-sm text-sm leading-6 text-muted">{text}</p>}
-      {action && <div className="mt-2">{action}</div>}
+      <h4 className="text-[15px] font-semibold">{title}</h4>
+      {text && <p className="max-w-sm text-[13px] leading-6 text-muted">{text}</p>}
+      {action && <div className="mt-1">{action}</div>}
     </div>
   );
 }
@@ -317,9 +380,15 @@ export function SkeletonCard({ className }: { className?: string }) {
 
 export function PageSkeleton({ count = 4 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="tg-page-list divide-y divide-line overflow-hidden rounded-xl bg-surface">
       {Array.from({ length: count }).map((_, i) => (
-        <SkeletonCard key={i} />
+        <div key={i} className="flex items-center gap-3 px-4 py-3.5">
+          <div className="skeleton h-9 w-9 shrink-0 rounded-full" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="skeleton h-3.5 w-1/2" />
+            <div className="skeleton h-3 w-4/5" />
+          </div>
+        </div>
       ))}
     </div>
   );
@@ -337,24 +406,21 @@ export function Tabs({
   onChange: (id: string) => void;
 }) {
   return (
-    <div className="no-scrollbar flex gap-1 overflow-x-auto rounded-lg border border-line/60 bg-surface p-1">
+    <div className="tg-tabs" role="tablist">
       {items.map((t) => (
         <button
           key={t.id}
+          role="tab"
+          aria-selected={active === t.id}
           onClick={() => onChange(t.id)}
-          className={cls(
-            "flex shrink-0 items-center gap-1.5 rounded-md px-3.5 py-2 text-sm font-medium transition-all",
-            active === t.id
-              ? "bg-neon/15 text-sky shadow-[inset_0_0_0_1px_rgba(47,140,255,0.4)]"
-              : "text-muted hover:text-text"
-          )}
+          className={cls("tg-tab-item", active === t.id && "active")}
         >
           {t.label}
           {t.count !== undefined && (
             <span
               className={cls(
-                "chip !px-1.5 !py-0 text-[10px]",
-                active === t.id ? "bg-neon/20 text-sky" : "bg-surface2 text-locked"
+                "ms-1.5 text-[11px] tabular-nums",
+                active === t.id ? "text-sky" : "text-locked"
               )}
             >
               {toFa(t.count)}
@@ -388,7 +454,7 @@ export function Banner({
   return (
     <div
       className={cls(
-        "flex items-start justify-between gap-3 rounded-lg border px-4 py-3 text-sm animate-slide-up",
+        "flex items-start justify-between gap-3 rounded-[10px] border px-3.5 py-3 text-[13px] animate-slide-up",
         styles
       )}
       role={kind === "error" ? "alert" : "status"}

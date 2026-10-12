@@ -1,22 +1,10 @@
+import { ChGlyph } from "../lib/entityIcons";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  Lock,
-  CheckCircle2,
-  PlayCircle,
-  Star,
-  Users,
-  Clock,
-  BookOpen,
-  Dumbbell,
-  Search,
-  BadgePercent,
-} from "lucide-react";
-import { levelStyles } from "../lib/data";
+import { Lock, Search, BadgePercent } from "lucide-react";
 import type { Level } from "../lib/types";
 import { useApp } from "../lib/store";
 import { cls, hours, price, toFa } from "../lib/utils";
-import { Progress } from "../components/ui";
 
 const FILTERS: { id: "all" | Level; label: string }[] = [
   { id: "all", label: "همه" },
@@ -40,61 +28,57 @@ export default function Chapters() {
     [filter, query, chapters]
   );
 
+  const discountChapter = activeDiscount
+    ? chapters.find((c) => c.id === activeDiscount.chapterId)
+    : undefined;
+
   return (
-    <div className="container-x py-10 sm:py-14">
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <span className="chip mb-3 border border-neon/25 bg-neon/10 text-sky">مسیر یادگیری</span>
-          <h1 className="text-2xl font-black sm:text-3xl">فصل‌های آموزشی</h1>
-          <p className="mt-2 max-w-xl text-sm leading-7 text-muted">
-            هر فصل به‌صورت مستقل قابل خرید است. فصل اول کاملاً رایگان؛ بعد از آن، با نمره خوب در
-            آزمون‌ها تخفیف واقعی بگیرید.
-          </p>
-        </div>
-        {activeDiscount && (
-          <div className="flex items-center gap-2 rounded-lg border border-teal/25 bg-teal/10 px-4 py-2.5 text-sm">
-            <BadgePercent size={17} className="text-teal" />
-            <span>
-              تخفیف <b>٪{toFa(activeDiscount.percent)}</b> برای{" "}
-              <Link
-                to={`/checkout/${activeDiscount.chapterId}`}
-                className="font-bold text-teal underline"
-              >
-                فصل {toFa(chapters.find((c) => c.id === activeDiscount.chapterId)?.index ?? "")}
-              </Link>
-            </span>
-          </div>
-        )}
+    <div className="mx-auto w-full max-w-[720px] px-4 py-4">
+      <header className="pb-3">
+        <h1 className="text-[22px] font-semibold leading-8 max-lg:hidden">فصل‌های آموزشی</h1>
+        <p className="mt-1 text-[13px] leading-6 text-muted">
+          هر فصل مستقل قابل خرید است. فصل اول رایگان؛ با نمره خوب در آزمون‌ها تخفیف واقعی بگیرید.
+        </p>
+      </header>
+
+      {activeDiscount && (
+        <Link
+          to={`/checkout/${activeDiscount.chapterId}`}
+          className="mb-3 flex items-center gap-2.5 rounded-xl bg-teal/10 px-3.5 py-3 text-[13px] text-teal"
+        >
+          <BadgePercent size={17} className="shrink-0" />
+          <span>
+            تخفیف <b>٪{toFa(activeDiscount.percent)}</b> برای فصل{" "}
+            {toFa(discountChapter?.index ?? "")} فعال است
+          </span>
+        </Link>
+      )}
+
+      {/* filters */}
+      <div className="tg-tabs -mx-4">
+        {FILTERS.map((f) => (
+          <button
+            key={f.id}
+            onClick={() => setFilter(f.id)}
+            className={cls("tg-tab-item", filter === f.id && "active")}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
-      {/* toolbar */}
-      <div className="mb-8 flex flex-wrap items-center gap-3">
-        <div className="flex gap-1 rounded-lg border border-line/60 bg-surface p-1">
-          {FILTERS.map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setFilter(f.id)}
-              className={cls(
-                "rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors",
-                filter === f.id ? "bg-neon/15 text-sky" : "text-muted hover:text-text"
-              )}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-        <div className="relative min-w-[220px] flex-1 sm:max-w-xs">
-          <Search size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-locked" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="جست‌وجو در فصل‌ها…"
-            className="input !pr-10"
-          />
-        </div>
+      <div className="relative mb-3 mt-3">
+        <Search size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-locked" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="جست‌وجو در فصل‌ها…"
+          className="input !pr-10"
+        />
       </div>
 
-      <div className="space-y-4">
+      {/* list */}
+      <div className="tg-group max-lg:-mx-1 lg:rounded-xl lg:shadow-card">
         {list.map((ch) => {
           const owned = ch.free || hasAccess(ch.id);
           const locked = !owned;
@@ -102,142 +86,60 @@ export default function Chapters() {
           const isPurchased = state.purchases.some(
             (p) => p.chapterId === ch.id && p.status === "موفق"
           );
+          const status = locked
+            ? "خرید"
+            : progress >= 100
+              ? "تکمیل‌شده"
+              : progress > 0
+                ? `${toFa(progress)}٪ پیشرفت`
+                : isPurchased
+                  ? "خریداری‌شده"
+                  : `سطح ${ch.level}`;
           return (
-            <Link
-              key={ch.id}
-              to={`/chapters/${ch.id}`}
-              className={cls(
-                "card group relative overflow-hidden p-5 transition-all hover:-translate-y-0.5 sm:p-6",
-                locked ? "" : "hover:border-neon/40 hover:shadow-glow-sm"
-              )}
-            >
-              <div
+            <Link key={ch.id} to={`/chapters/${ch.id}`} className="tg-row">
+              <span
                 className={cls(
-                  "absolute inset-y-0 right-0 w-1",
-                  ch.gradient,
-                  locked && "opacity-40"
+                  "grid h-10 w-10 shrink-0 place-items-center rounded-full text-[19px]",
+                  locked ? "bg-surface2 text-locked" : "bg-neon/10"
                 )}
-              />
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                <span
-                  className={cls(
-                    "grid h-14 w-14 shrink-0 place-items-center rounded-xl text-2xl",
-                    locked ? "bg-surface2" : "bg-navy"
-                  )}
-                >
-                  {locked ? <Lock size={20} className="text-locked" /> : ch.icon}
+              >
+                {locked ? <Lock size={17} /> : <ChGlyph id={ch.id} size={17} />}
+              </span>
+              <span className="tg-row-body">
+                <span className="tg-row-title">
+                  فصل {toFa(ch.index)} · {ch.title}
                 </span>
-                <div className="min-w-0 flex-1">
-                  <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-bold text-sky">فصل {toFa(ch.index)}</span>
-                    <span className={cls("chip", levelStyles[ch.level])}>{ch.level}</span>
-                    {ch.free && (
-                      <span className="chip border border-teal/25 bg-teal/10 text-teal">
-                        رایگان
-                      </span>
-                    )}
-                    {isPurchased && (
-                      <span className="chip border border-sky/25 bg-sky/10 text-sky">
-                        خریداری‌شده
-                      </span>
-                    )}
-                    {!ch.free && locked && (
-                      <span className="chip border border-line bg-surface2 text-locked">قفل</span>
-                    )}
-                  </div>
-                  <h3 className="text-base font-bold transition-colors group-hover:text-sky sm:text-lg">
-                    {ch.title}
-                  </h3>
-                  <p className="mt-1 text-sm leading-7 text-muted">{ch.subtitle}</p>
-                  <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted">
-                    <span className="flex items-center gap-1">
-                      <BookOpen size={13} /> {toFa(ch.lessons.length)} درس
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Dumbbell size={13} /> {toFa(ch.exercises.length)} تمرین
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock size={13} /> {hours(ch.duration)}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Users size={13} /> {toFa(ch.students.toLocaleString())} دانشجو
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Star size={13} className="fill-warn text-warn" /> {toFa(ch.rating)}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-                  {ch.free ? (
-                    <span className="text-lg font-black text-teal">رایگان</span>
-                  ) : (
-                    <span className="text-left">
-                      <span className="text-lg font-black">{price(ch.price)}</span>
-                      {ch.oldPrice && (
-                        <span className="mr-2 text-xs text-locked line-through">
-                          {price(ch.oldPrice)}
-                        </span>
-                      )}
-                    </span>
-                  )}
-                  {!locked && progress > 0 && (
-                    <div className="w-36">
-                      <div className="mb-1 flex justify-between text-[10px] text-muted">
-                        <span>پیشرفت شما</span>
-                        <span className="text-sky">{toFa(progress)}٪</span>
-                      </div>
-                      <Progress value={progress} className="h-1.5" />
-                    </div>
-                  )}
-                  <span
-                    className={cls(
-                      "mt-1 flex items-center gap-1.5 text-sm font-bold",
-                      locked ? "text-locked" : "text-neon"
-                    )}
-                  >
-                    {locked ? (
-                      <>
-                        <Lock size={14} /> خرید فصل
-                      </>
-                    ) : (
-                      <>
-                        {progress >= 100 ? (
-                          <CheckCircle2 size={15} className="text-teal" />
-                        ) : (
-                          <PlayCircle size={15} />
-                        )}
-                        {progress >= 100 ? "تکمیل‌شده" : "مشاهده فصل"}
-                      </>
-                    )}
+                <span className="tg-row-sub">
+                  {toFa(ch.lessons.length)} درس · {hours(ch.duration)}
+                </span>
+                {!locked && progress > 0 && (
+                  <span className="tg-rail">
+                    <span style={{ width: `${progress}%` }} />
                   </span>
-                </div>
-              </div>
-              {!locked && progress > 0 && (
-                <div className="mt-4 flex items-center gap-3 lg:hidden">
-                  <Progress value={progress} className="flex-1" />
-                  <span className="text-xs text-muted">{toFa(progress)}٪</span>
-                </div>
-              )}
+                )}
+              </span>
+              <span className="shrink-0 text-left">
+                <span className="block text-[13px] font-medium tabular-nums">
+                  {ch.free ? "رایگان" : price(ch.price)}
+                </span>
+                <span className="block text-[11px] text-locked">{status}</span>
+              </span>
             </Link>
           );
         })}
         {list.length === 0 && (
-          <div className="card p-10 text-center text-sm text-muted">
-            نتیجه‌ای برای جست‌وجوی شما یافت نشد.
-          </div>
+          <div className="tg-row text-[13px] text-muted">نتیجه‌ای برای جست‌وجوی شما پیدا نشد.</div>
         )}
       </div>
 
       {!user && (
-        <div className="card mt-10 flex flex-wrap items-center justify-between gap-4 p-6">
-          <div>
-            <h3 className="font-bold">برای ذخیره پیشرفت، وارد شوید</h3>
-            <p className="mt-1 text-sm text-muted">
-              ورود فقط با شماره موبایل — چند ثانیه طول می‌کشد.
-            </p>
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-surface px-4 py-4 shadow-card">
+          <div className="min-w-0">
+            <p className="text-[15px] font-medium">برای ذخیره پیشرفت وارد شوید</p>
+            <p className="mt-0.5 text-[13px] text-muted">ورود فقط با شماره موبایل — چند ثانیه.</p>
           </div>
-          <Link to="/auth" className="btn-primary btn-md">
-            ورود / ثبت‌نام
+          <Link to="/auth" className="btn-primary btn-sm shrink-0">
+            ورود
           </Link>
         </div>
       )}

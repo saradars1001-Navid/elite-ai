@@ -28,8 +28,8 @@ export default defineConfig({
         orientation: "portrait",
         start_url: "/",
         scope: "/",
-        theme_color: "#070B14",
-        background_color: "#070B14",
+        theme_color: "#FFFFFF",
+        background_color: "#F2F3F5",
         categories: ["education", "productivity"],
         icons: [
           {

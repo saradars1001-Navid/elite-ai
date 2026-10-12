@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Plus, Pencil, Trash2, Save, Wand2, RefreshCw, ListChecks } from "lucide-react";
 import { useApp } from "../../lib/store";
-import { AdminHeader, Table, Td, Badge } from "./AdminUI";
+import { AdminHeader, Table, Td, TRow, Badge } from "./AdminUI";
 import { toFa } from "../../lib/utils";
 import { Modal } from "../../components/ui";
 import { QUESTION_CATEGORIES } from "../../lib/data";
@@ -97,13 +97,13 @@ export default function AdminQuizzes() {
 
       {saved && (
         <div className="card mb-6 border border-teal/25 p-4 text-sm text-teal animate-fade-in">
-          ✓ تغییرات ذخیره و در بخش کوییز سایت اعمال شد.
+          تغییرات ذخیره و در بخش کوییز سایت اعمال شد.
         </div>
       )}
 
       <Table head={["کوییز", "نوع", "دسته‌بندی", "سطح", "سؤالات", "زمان", "اقدامات"]}>
         {quizzes.map((q) => (
-          <tr key={q.id} className="transition-colors hover:bg-surface2/30">
+          <TRow key={q.id}>
             <Td>
               <p className="font-bold">{q.title}</p>
               <p className="text-[11px] text-muted" dir="ltr">
@@ -171,7 +171,7 @@ export default function AdminQuizzes() {
                 </button>
               </div>
             </Td>
-          </tr>
+          </TRow>
         ))}
       </Table>
 
@@ -285,7 +285,7 @@ export default function AdminQuizzes() {
             <p className="text-xs text-muted">
               {genResult && (
                 <span className="text-teal">
-                  ✓ کوییز جدید ساخته شد (id: <b dir="ltr">{genResult}</b>)
+                  کوییز جدید ساخته شد (id: <b dir="ltr">{genResult}</b>)
                 </span>
               )}
             </p>

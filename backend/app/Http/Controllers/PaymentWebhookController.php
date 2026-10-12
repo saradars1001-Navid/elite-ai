@@ -38,7 +38,7 @@ class PaymentWebhookController extends Controller
 
         // Layer 1 — optional plain shared secret for gateways that can send a
         // custom header (X-Webhook-Secret).
-        $secret = (string) env('PAYMENT_WEBHOOK_SECRET', '');
+        $secret = (string) config('payment.webhook_secret', '');
         if ($secret !== '' && ! hash_equals($secret, (string) $request->header('X-Webhook-Secret', ''))) {
             return $fail('unauthorized', 401);
         }

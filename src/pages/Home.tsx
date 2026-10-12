@@ -1,6 +1,6 @@
+import { ChGlyph, LevelGlyph } from "../lib/entityIcons";
 import { Link } from "react-router-dom";
 import {
-  Play,
   PlayCircle,
   FileText,
   Dumbbell,
@@ -28,8 +28,8 @@ import {
 } from "lucide-react";
 import { TESTIMONIALS, levelStyles } from "../lib/data";
 import { useApp } from "../lib/store";
-import { cls, hours, price, priceShort, toFa, percent, timeAgo } from "../lib/utils";
-import { Progress, Stars, Avatar, LevelCard } from "../components/ui";
+import { cls, hours, price, priceShort, toFa, timeAgo } from "../lib/utils";
+import { Progress, Stars, Avatar } from "../components/ui";
 
 const FEATURES = [
   {
@@ -203,7 +203,7 @@ export default function Home() {
                   </span>
                   <div className="text-xs">
                     <p className="font-bold">زنجیره کوییز</p>
-                    <p className="text-muted">۷ روز پیاپی 🔥</p>
+                    <p className="text-muted">۷ روز پیاپی</p>
                   </div>
                 </div>
               </div>
@@ -211,7 +211,7 @@ export default function Home() {
           </div>
 
           {/* continuity strip into next section */}
-          <div className="relative h-10 bg-gradient-to-b from-transparent to-base" aria-hidden />
+          <div className="relative h-10 bg-gradient-to-b from-transparent to-page" aria-hidden />
         </section>
 
         {/* ─────────────── Learning path ─────────────── */}
@@ -252,7 +252,7 @@ export default function Home() {
                           : "border-line bg-surface"
                       )}
                     >
-                      {ch.icon}
+                      <ChGlyph id={ch.id} size={22} />
                     </span>
                   </div>
                   <div className="card flex-1 p-5 transition-all group-hover:border-neon/40 group-hover:shadow-glow-sm sm:p-6">
@@ -335,7 +335,9 @@ export default function Home() {
                       ch.gradient
                     )}
                   >
-                    <span className="absolute bottom-3 right-4 text-3xl">{ch.icon}</span>
+                    <span className="absolute bottom-3 right-4 text-3xl">
+                      <ChGlyph id={ch.id} size={26} />
+                    </span>
                     <span className="absolute left-3 top-3 chip bg-black/30 text-white backdrop-blur">
                       سطح {ch.level}
                     </span>
@@ -431,7 +433,7 @@ export default function Home() {
               نظرات کاربران
             </span>
             <h2 className="section-title">تجربه یادگیرنده‌ها</h2>
-            <p className="mt-3 text-sm text-muted">نمونه بازخوردهای کاربران نسخه نمایشی</p>
+            <p className="mt-3 text-sm text-muted">آنچه یادگیرندگان از این مسیر می‌گویند</p>
           </div>
           <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
             {TESTIMONIALS.map((t) => (
@@ -533,38 +535,87 @@ function MobileHome() {
     .slice(0, 3);
 
   const quick = [
-    { to: "/chapters", icon: BookOpen, label: "مسیر یادگیری", tone: "text-sky bg-sky/10" },
-    { to: "/quiz", icon: Gamepad2, label: "کوییز", tone: "text-teal bg-teal/10" },
-    { to: "/explore", icon: PlaySquare, label: "اکسپلور", tone: "text-danger bg-danger/10" },
-    { to: "/prompt-trends", icon: TrendingUp, label: "ترند پرامپت", tone: "text-warn bg-warn/10" },
-    { to: "/tools", icon: Wrench, label: "ابزارها", tone: "text-[#A78BFA] bg-[#8B5CF6]/15" },
-    { to: "/community", icon: MessageCircle, label: "کامیونیتی", tone: "text-warn bg-warn/10" },
+    { to: "/tools", icon: Wrench, label: "بانک ابزارهای هوش مصنوعی" },
+    { to: "/explore", icon: PlaySquare, label: "اکسپلور ویدئو" },
+    { to: "/prompt-trends", icon: TrendingUp, label: "ترند پرامپتها" },
+    { to: "/community", icon: MessageCircle, label: "کامیونیتی" },
+  ];
+
+  const stories = [
+    ...(hasProgress && continueTarget
+      ? [
+          {
+            to: `/chapters/${continueTarget.chapterId}/lessons/${continueTarget.lessonId}`,
+            Icon: PlayCircle,
+            label: "ادامه یادگیری",
+            badge: "",
+          },
+        ]
+      : []),
+    {
+      to: user && dailyQuiz ? `/quiz/${dailyQuiz.id}` : "/auth",
+      Icon: Flame,
+      label: "کوییز امروز",
+      badge: dailyDone ? "" : streak > 0 ? toFa(streak) : "",
+    },
+    { to: "/tools", Icon: Wrench, label: "ابزارها", badge: toFa(aiTools.length) },
+    { to: "/explore", Icon: PlaySquare, label: "ویدئوها", badge: "" },
+    { to: "/prompt-lab", Icon: Sparkles, label: "پرامپت‌لب", badge: "" },
+    { to: "/community", Icon: MessageCircle, label: "کامیونیتی", badge: "" },
+    {
+      to: user ? "/profile" : "/auth",
+      Icon: GraduationCap,
+      label: user ? "پروفایل" : "ورود",
+      badge: "",
+    },
   ];
 
   return (
     <div className="pb-4">
       {/* greeting */}
-      <section className="px-4 pt-5">
-        <p className="text-xs text-muted">{dateStr}</p>
-        <div className="mt-1 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-black">
-            {user ? `سلام، ${user.name.split(" ")[0]} 👋` : "سلام 👋"}
+      <section className="flex items-end justify-between gap-3 px-4 pt-4">
+        <div className="min-w-0">
+          <p className="text-[13px] text-muted">
+            {dateStr}
+            {user && streak > 0 ? ` · ${toFa(streak)} روز پیوسته` : ""}
+          </p>
+          <h1 className="mt-0.5 truncate text-[22px] font-semibold leading-8 text-text">
+            {user ? `سلام، ${user.name.split(" ")[0]}` : "به آکادمی ایلیت خوش آمدی"}
           </h1>
-          {user && (
-            <Link to="/profile" aria-label="پروفایل">
-              <Avatar name={user.name} size="md" online />
-            </Link>
-          )}
         </div>
-        <p className="mt-1 text-sm text-muted">
-          {user
-            ? "امروز چه چیزی یاد می‌گیریم؟"
-            : "مسیر تعاملی یادگیری هوش مصنوعی، همین حالا شروع کن."}
-        </p>
+        {user && (
+          <Link to="/profile" aria-label="پروفایل" className="shrink-0">
+            <Avatar name={user.name} size="md" online />
+          </Link>
+        )}
+      </section>
+
+      {/* stories rail — chapter/quiz/tool quick-entries with gradient rings */}
+      <section className="no-scrollbar mt-5 flex gap-3.5 overflow-x-auto px-4 pb-2">
+        {stories.map((st) => (
+          <Link
+            key={st.label}
+            to={st.to}
+            className="flex w-[68px] shrink-0 flex-col items-center gap-1.5"
+          >
+            <span className="relative inline-grid h-[62px] w-[62px] place-items-center rounded-full p-[2.5px] bg-gradient-to-tr from-neon via-teal to-warn">
+              <span className="grid h-full w-full place-items-center rounded-full border-2 border-page bg-navy">
+                <st.Icon size={22} strokeWidth={1.9} />
+              </span>
+              {st.badge && (
+                <span className="absolute -bottom-0.5 -left-0.5 grid h-5 min-w-[20px] place-items-center rounded-full bg-neon px-1 text-[10px] font-bold leading-none text-white">
+                  {st.badge}
+                </span>
+              )}
+            </span>
+            <span className="w-full truncate text-center text-[11px] text-muted">{st.label}</span>
+          </Link>
+        ))}
       </section>
 
       {/* continue learning */}
-      <section className="px-4 pt-5">
+      <p className="tg-group-title">{user && hasProgress ? "ادامه یادگیری" : "شروع یادگیری"}</p>
+      <div className="tg-group">
         <Link
           to={
             user
@@ -573,245 +624,223 @@ function MobileHome() {
                 : "/chapters"
               : "/auth"
           }
-          className="relative block overflow-hidden rounded-xl border border-neon/30 bg-gradient-to-bl from-navy via-surface to-surface p-5"
+          className="tg-row"
         >
-          <div className="bg-grid absolute inset-0 opacity-50" />
-          <div className="absolute -left-10 -top-10 h-32 w-32 rounded-full bg-neon/10 blur-3xl" />
-          <div className="relative">
-            <div className="flex items-center justify-between gap-2">
-              <span className="chip border border-neon/25 bg-neon/10 text-sky">
-                <PlayCircle size={13} /> {user && hasProgress ? "ادامه یادگیری" : "شروع یادگیری"}
-              </span>
-              <span className="flex items-center gap-1 text-[11px] text-muted">
-                <Clock size={12} />{" "}
-                {targetLesson ? hours(targetLesson.duration) : hours(targetChapter?.duration ?? 0)}
-              </span>
-            </div>
-            <h3 className="mt-3 line-clamp-2 text-lg font-black leading-7">
-              {user ? (targetLesson?.title ?? "شروع مسیر یادگیری") : "فصل ۱: شناخت هوش مصنوعی"}
-            </h3>
-            <p className="mt-1 line-clamp-1 text-xs text-muted">
+          <span className="tg-row-icon text-neon">
+            <PlayCircle size={19} />
+          </span>
+          <span className="tg-row-body">
+            <span className="tg-row-title">
+              {user ? (targetLesson?.title ?? "شروع مسیر یادگیری") : "فصل ۱ · شناخت هوش مصنوعی"}
+            </span>
+            <span className="tg-row-sub">
               {targetChapter
                 ? `فصل ${toFa(targetChapter.index)} · ${targetChapter.title}`
-                : "شروع از فصل اول"}
-            </p>
-            <div className="mt-4 flex items-center gap-3">
-              <Progress value={user ? chapterProgress(target.chapterId) : 0} className="flex-1" />
-              <span className="shrink-0 text-xs font-bold text-sky">
-                {user ? percent(chapterProgress(target.chapterId)) : "رایگان"}
+                : "از فصل اول شروع کن"}
+            </span>
+            {user ? (
+              <span className="tg-rail">
+                <span style={{ width: `${chapterProgress(target.chapterId)}%` }} />
               </span>
-            </div>
-            <div className="mt-4 inline-flex items-center gap-2 rounded-lg bg-neon px-4 py-2.5 text-sm font-bold text-white shadow-glow-sm">
-              <Play size={16} /> {user && hasProgress ? "ادامه درس" : "شروع رایگان"}
-            </div>
-          </div>
+            ) : null}
+          </span>
+          <span className="tg-row-value flex items-center gap-1">
+            <Clock size={12} />
+            {targetLesson ? hours(targetLesson.duration) : hours(targetChapter?.duration ?? 0)}
+          </span>
         </Link>
-      </section>
+      </div>
 
-      {/* daily quiz + streak */}
-      {dailyQuiz && (
-        <section className="px-4 pt-4">
-          <Link
-            to={user ? `/quiz/${dailyQuiz.id}` : "/auth"}
-            className="card flex items-center justify-between gap-3 p-4"
-          >
-            <div className="flex items-center gap-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#F97316]/15 text-[#F97316]">
-                <Flame size={20} />
+      {/* today: daily quiz + level */}
+      <p className="tg-group-title">امروز</p>
+      <div className="tg-group">
+        {dailyQuiz && (
+          <Link to={user ? `/quiz/${dailyQuiz.id}` : "/auth"} className="tg-row">
+            <span className="tg-row-icon text-neon">
+              <Flame size={19} />
+            </span>
+            <span className="tg-row-body">
+              <span className="tg-row-title">کوییز امروز</span>
+              <span className="tg-row-sub">
+                {dailyDone ? "انجام شد — فردا دوباره سر بزن" : "امتیاز و زنجیرهی روزانه"}
               </span>
-              <div>
-                <p className="text-sm font-bold">کوییز امروز</p>
-                <p className="mt-0.5 text-[11px] text-muted">
-                  {dailyDone
-                    ? "انجام شد — فردا دوباره برگرد 🌟"
-                    : `${toFa(streak)} روز زنجیره پیاپی 🔥`}
-                </p>
-              </div>
-            </div>
-            <span
-              className={cls(
-                "chip shrink-0",
-                dailyDone
-                  ? "border border-teal/25 bg-teal/10 text-teal"
-                  : "border border-[#F97316]/25 bg-[#F97316]/10 text-[#F97316]"
-              )}
+            </span>
+            {dailyDone ? (
+              <span className="tg-badge-quiet">انجام شد</span>
+            ) : streak > 0 ? (
+              <span className="tg-badge">{toFa(streak)}</span>
+            ) : (
+              <ChevronLeft size={18} className="shrink-0 text-locked" />
+            )}
+          </Link>
+        )}
+        {user && (
+          <Link to="/profile" className="tg-row">
+            <span className="tg-row-icon">
+              <Star size={19} />
+            </span>
+            <span className="tg-row-body">
+              <span className="tg-row-title">
+                <LevelGlyph level={level.level} size={14} /> سطح {toFa(level.level)} · {level.title}
+              </span>
+              <span className="tg-row-sub">{toFa(xp)} امتیاز تجربه</span>
+              <span className="tg-rail">
+                <span style={{ width: `${level.progress}%` }} />
+              </span>
+            </span>
+            <span className="tg-row-value">{toFa(Math.round(level.progress))}٪</span>
+          </Link>
+        )}
+        {!user && (
+          <Link to="/auth" className="tg-row">
+            <span className="tg-row-icon text-neon">
+              <Rocket size={19} />
+            </span>
+            <span className="tg-row-body">
+              <span className="tg-row-title">ساخت حساب</span>
+              <span className="tg-row-sub">پیشرفت، امتیاز و تخفیف با ورود ذخیره میشود</span>
+            </span>
+            <ChevronLeft size={18} className="shrink-0 text-locked" />
+          </Link>
+        )}
+      </div>
+
+      {/* shortcuts */}
+      <p className="tg-group-title">میانبرها</p>
+      <div className="tg-group">
+        {quick.map((q) => (
+          <Link key={q.to} to={q.to} className="tg-row">
+            <span className="tg-row-icon">
+              <q.icon size={19} />
+            </span>
+            <span className="tg-row-body">
+              <span className="tg-row-title">{q.label}</span>
+            </span>
+            <ChevronLeft size={18} className="shrink-0 text-locked" />
+          </Link>
+        ))}
+      </div>
+
+      {/* chapters */}
+      {/* chapters — visual feed cards (Instagram post rhythm) */}
+      <HomeSection title="مسیر یادگیری" to="/chapters" linkLabel="همه فصل‌ها">
+        <div className="no-scrollbar flex snap-x gap-3 overflow-x-auto px-3 pb-1">
+          {chapters.slice(0, 6).map((ch) => (
+            <Link
+              key={ch.id}
+              to={`/chapters/${ch.id}`}
+              className="w-[230px] shrink-0 snap-start overflow-hidden rounded-xl border border-line/60 bg-surface text-right shadow-card transition-transform active:scale-[0.98]"
             >
-              {dailyDone ? "انجام شد" : "شروع کن"}
+              {/* media block */}
+              <div className={`relative h-[110px] bg-gradient-to-br ${ch.gradient}`}>
+                <span className="absolute bottom-3 right-3.5 opacity-40">
+                  <ChGlyph id={ch.id} size={34} />
+                </span>
+                <span className="absolute left-3 top-3 rounded-full bg-black/25 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
+                  {ch.free ? "رایگان" : priceShort(ch.price)}
+                </span>
+                {user && (
+                  <span className="absolute bottom-3 left-3 flex items-center gap-1 text-[10px] font-bold text-white/90">
+                    <Star size={11} className="fill-white/90" /> {toFa(ch.rating)}
+                  </span>
+                )}
+              </div>
+              {/* post chrome */}
+              <div className="space-y-2 p-3">
+                <p className="text-[11px] font-medium text-muted">
+                  فصل {toFa(ch.index)} · {hours(ch.duration)}
+                </p>
+                <p className="line-clamp-2 min-h-[2.4rem] text-[13.5px] font-bold leading-6">
+                  {ch.title}
+                </p>
+                <div className="flex items-center justify-between border-t border-line/50 pt-2 text-[11px] text-muted">
+                  <span className="flex items-center gap-1">
+                    <FileText size={12} /> {toFa(ch.lessons.length)} درس
+                  </span>
+                  <span className="flex items-center gap-1 text-sky">
+                    {toFa(ch.completionRate)}٪ تکمیل
+                  </span>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </HomeSection>
+
+      {/* quizzes */}
+      <HomeSection title="کوییزها" to="/quiz" linkLabel="همه کوییزها">
+        {quizzes.slice(0, 4).map((q) => (
+          <Link key={q.id} to={`/quiz/${q.id}`} className="tg-row">
+            <span className="tg-row-icon">
+              <Gamepad2 size={19} />
+            </span>
+            <span className="tg-row-body">
+              <span className="tg-row-title">{q.title}</span>
+              <span className="tg-row-sub">
+                {q.kind === "daily" ? "روزانه" : q.kind === "weekly" ? "هفتگی" : q.category} ·{" "}
+                {toFa(q.questions.length)} سؤال · {q.difficulty}
+              </span>
+            </span>
+            <span className="tg-row-value">
+              {toFa(q.questions.length * q.pointsPerQuestion)} XP
             </span>
           </Link>
-        </section>
-      )}
-
-      {/* quick actions */}
-      <section className="px-4 pt-5">
-        <div className="grid grid-cols-3 gap-2.5">
-          {quick.map((q) => (
-            <Link
-              key={q.to}
-              to={q.to}
-              className="card flex flex-col items-center gap-2 py-3.5 transition-transform active:scale-95"
-            >
-              <span className={cls("grid h-10 w-10 place-items-center rounded-xl", q.tone)}>
-                <q.icon size={19} />
-              </span>
-              <span className="text-[11px] font-medium text-muted">{q.label}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* XP level */}
-      {user && (
-        <section className="px-4 pt-5">
-          <LevelCard xp={xp} level={level} compact />
-        </section>
-      )}
-
-      {/* chapters carousel */}
-      <HomeSection title="مسیر یادگیری" to="/chapters" linkLabel="همه فصل‌ها">
-        <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
-          {chapters.map((ch) => (
-            <Link key={ch.id} to={`/chapters/${ch.id}`} className="w-72 shrink-0 snap-start">
-              <div className="card overflow-hidden">
-                <div
-                  className={cls(
-                    "bg-grid relative h-24 border-b border-line/50 bg-gradient-to-br",
-                    ch.gradient
-                  )}
-                >
-                  <span className="absolute bottom-3 right-4 text-2xl">{ch.icon}</span>
-                  <span className="absolute left-3 top-3 chip bg-black/30 text-white backdrop-blur">
-                    {ch.free ? "رایگان" : `سطح ${ch.level}`}
-                  </span>
-                </div>
-                <div className="space-y-2 p-4">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-bold text-sky">فصل {toFa(ch.index)}</span>
-                    <span className="flex items-center gap-1 text-[10px] text-muted">
-                      <Star size={10} className="fill-warn text-warn" /> {toFa(ch.rating)}
-                    </span>
-                  </div>
-                  <h3 className="line-clamp-2 text-sm font-bold leading-5">{ch.title}</h3>
-                  <div className="flex items-center justify-between text-[11px] text-muted">
-                    <span>{toFa(ch.lessons.length)} درس</span>
-                    <span className="font-black text-text">
-                      {ch.free ? "رایگان" : priceShort(ch.price)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Progress value={ch.completionRate} className="h-1.5 flex-1" />
-                    <span className="shrink-0 text-[10px] text-muted">
-                      {toFa(ch.completionRate)}٪
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+        ))}
       </HomeSection>
 
-      {/* quizzes carousel */}
-      <HomeSection title="کوییزها" to="/quiz" linkLabel="همه کوییزها">
-        <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
-          {quizzes.slice(0, 8).map((q) => (
-            <Link key={q.id} to={`/quiz/${q.id}`} className="w-60 shrink-0 snap-start">
-              <div className="card h-full p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="chip border border-neon/20 bg-neon/10 text-sky">
-                    {q.kind === "daily" ? "روزانه" : q.kind === "weekly" ? "هفتگی" : q.category}
-                  </span>
-                  <span className="text-[10px] text-muted">{q.difficulty}</span>
-                </div>
-                <h3 className="mt-3 line-clamp-2 text-sm font-bold leading-5">{q.title}</h3>
-                <div className="mt-3 flex items-center justify-between text-[11px] text-muted">
-                  <span>{toFa(q.questions.length)} سؤال</span>
-                  <span className="flex items-center gap-1 font-bold text-teal">
-                    <Trophy size={12} /> {toFa(q.questions.length * q.pointsPerQuestion)} XP
-                  </span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </HomeSection>
-
-      {/* tools carousel */}
+      {/* tools */}
       <HomeSection title="ابزارهای هوش مصنوعی" to="/tools" linkLabel="بانک ابزارها">
-        <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
-          {aiTools.slice(0, 8).map((t) => (
-            <Link key={t.id} to="/tools" className="w-56 shrink-0 snap-start">
-              <div className="card h-full p-4">
-                <div className="flex items-center gap-2.5">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-navy to-surface2 text-sm font-black text-sky">
-                    {t.name[0]}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold">{t.name}</p>
-                    <p className="truncate text-[10px] text-muted">{t.category}</p>
-                  </div>
-                </div>
-                <p className="mt-2.5 line-clamp-2 text-[11px] leading-5 text-muted">{t.tagline}</p>
-                <div className="mt-2.5 flex items-center justify-between text-[10px]">
-                  <span className="flex items-center gap-1 text-warn">
-                    <Star size={10} className="fill-warn" /> {toFa(t.rating)}
-                  </span>
-                  <span className="chip border border-teal/20 bg-teal/10 !py-0 text-teal">
-                    {t.pricing === "رایگان"
-                      ? "رایگان"
-                      : t.pricing === "پولی"
-                        ? "پولی"
-                        : "رایگان + پولی"}
-                  </span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+        {aiTools.slice(0, 4).map((t) => (
+          <Link key={t.id} to="/tools" className="tg-row">
+            <span className="tg-row-icon text-[13px] font-semibold text-sky">{t.name[0]}</span>
+            <span className="tg-row-body">
+              <span className="tg-row-title">{t.name}</span>
+              <span className="tg-row-sub">
+                {t.category} · {t.tagline}
+              </span>
+            </span>
+            <span className="tg-row-value">{t.pricing}</span>
+          </Link>
+        ))}
       </HomeSection>
 
       {/* community preview */}
-      <HomeSection title="آخرین بحث‌های کامیونیتی" to="/community" linkLabel="کامیونیتی">
-        <div className="space-y-2.5">
-          {latestPosts.length === 0 && (
-            <div className="card px-4 py-6 text-center text-sm text-muted">
-              هنوز پستی ثبت نشده — اولین نفر باش!
-            </div>
-          )}
-          {latestPosts.map((p) => (
-            <Link key={p.id} to={`/community/${p.id}`} className="card flex items-start gap-3 p-4">
-              <Avatar name={p.author.name} size="sm" />
-              <div className="min-w-0 flex-1">
-                <p className="line-clamp-1 text-sm font-bold">{p.title}</p>
-                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted">
-                  <span className="chip border border-line/60 bg-surface2 !py-0">{p.category}</span>
-                  <span>{timeAgo(p.createdAt)}</span>
-                  <span className="flex items-center gap-1">
-                    <MessageCircle size={10} /> {toFa(p.commentsCount)}
-                  </span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+      <HomeSection title="تازه‌های کامیونیتی" to="/community" linkLabel="کامیونیتی">
+        {latestPosts.length === 0 && (
+          <div className="tg-row text-[13px] text-muted">هنوز پستی ثبت نشده — اولین نفر باش.</div>
+        )}
+        {latestPosts.map((p) => (
+          <Link key={p.id} to={`/community/${p.id}`} className="tg-row">
+            <Avatar name={p.author.name} size="sm" />
+            <span className="tg-row-body">
+              <span className="tg-row-title">{p.title}</span>
+              <span className="tg-row-sub">
+                {p.category} · {timeAgo(p.createdAt)}
+              </span>
+            </span>
+            <span className="tg-row-value flex items-center gap-1">
+              <MessageCircle size={12} /> {toFa(p.commentsCount)}
+            </span>
+          </Link>
+        ))}
       </HomeSection>
 
-      {/* guest CTA */}
+      {/* guest */}
       {!user && (
-        <section className="px-4 pt-6">
-          <div className="card relative overflow-hidden p-5 text-center">
-            <div className="bg-grid absolute inset-0 opacity-40" />
-            <div className="relative">
-              <h3 className="text-base font-black">یک حساب بساز، همه‌چیز را باز کن</h3>
-              <p className="mt-1.5 text-xs leading-6 text-muted">
-                با ورود، پیشرفتت ذخیره می‌شود، تخفیف می‌گیری و در کامیونیتی شرکت می‌کنی.
-              </p>
-              <Link to="/auth" className="btn-primary btn-md mt-4">
-                <Rocket size={16} /> شروع یادگیری
-              </Link>
-            </div>
-          </div>
-        </section>
+        <HomeSection title="حساب کاربری" to="/auth" linkLabel="ورود">
+          <Link to="/auth" className="tg-row">
+            <span className="tg-row-icon text-neon">
+              <Rocket size={19} />
+            </span>
+            <span className="tg-row-body">
+              <span className="tg-row-title">یک حساب بساز، همه‌چیز را باز کن</span>
+              <span className="tg-row-sub">
+                پیشرفتت ذخیره می‌شود، تخفیف می‌گیری و در کامیونیتی شرکت می‌کنی
+              </span>
+            </span>
+            <ChevronLeft size={18} className="shrink-0 text-locked" />
+          </Link>
+        </HomeSection>
       )}
     </div>
   );
@@ -831,17 +860,15 @@ function HomeSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="pt-6">
-      <div className="mb-3 flex items-center justify-between px-4">
-        <h2 className="flex items-center gap-1.5 text-base font-black">
-          <Sparkles size={15} className="text-neon" />
-          {title}
-        </h2>
-        <Link to={to} className="flex items-center gap-0.5 text-xs font-bold text-sky">
-          {linkLabel} <ChevronLeft size={14} />
+    <section>
+      <div className="flex items-center justify-between px-4 pb-1.5 pt-5">
+        <h2 className="text-[13px] font-medium text-muted">{title}</h2>
+        <Link to={to} className="flex items-center gap-0.5 text-[13px] font-medium text-neon">
+          {linkLabel}
+          <ChevronLeft size={13} />
         </Link>
       </div>
-      {children}
+      <div className="tg-group">{children}</div>
     </section>
   );
 }

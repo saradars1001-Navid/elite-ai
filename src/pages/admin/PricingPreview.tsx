@@ -103,7 +103,7 @@ export default function AdminPricingPreview() {
       setResult(simulateLocal());
       setLive(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "شبیه‌سازی قیمت ناموفق بود");
+      setError(e instanceof Error ? e.message : "محاسبه قیمت ناموفق بود");
     } finally {
       setLoading(false);
     }
@@ -112,12 +112,12 @@ export default function AdminPricingPreview() {
   return (
     <div>
       <AdminHeader
-        title="شبیه‌ساز قیمت‌گذاری"
+        title="پیش‌نمایش قیمت‌گذاری"
         desc="با نمره آزمون و کد کوپن فرضی، قیمت نهایی فصل را قبل از اعمال در فروش بررسی کنید"
         action={
           <button onClick={simulate} disabled={loading} className="btn-primary btn-md">
             {loading ? <Loader2 size={15} className="animate-spin" /> : <Calculator size={15} />}{" "}
-            شبیه‌سازی
+            محاسبه
           </button>
         }
       />
@@ -213,7 +213,7 @@ export default function AdminPricingPreview() {
             <div className="flex h-full min-h-64 flex-col items-center justify-center rounded-lg border border-dashed border-line/60 p-10 text-center">
               <Calculator size={32} className="mb-3 text-muted/50" />
               <p className="text-sm text-muted">
-                فصل، نمره و کوپن را تنظیم کنید و «شبیه‌سازی» را بزنید تا قیمت نهایی نمایش داده شود.
+                فصل، نمره و کوپن را تنظیم کنید و «محاسبه» را بزنید تا قیمت نهایی نمایش داده شود.
               </p>
             </div>
           ) : (
@@ -221,7 +221,7 @@ export default function AdminPricingPreview() {
               {!live && (
                 <div className="flex items-center gap-2 rounded-lg border border-warn/25 bg-warn/10 px-4 py-2.5 text-xs text-warn">
                   <Sparkles size={14} />
-                  حالت دمو: سرویس‌دهنده لاراول متصل نیست، نتیجه با همان قوانین محلی محاسبه شد.
+                  سرویس‌دهنده متصل نیست؛ نتیجه با همان قوانین محلی محاسبه شد.
                 </div>
               )}
 

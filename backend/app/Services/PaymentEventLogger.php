@@ -23,7 +23,7 @@ final class PaymentEventLogger
         try {
             $event = PaymentEvent::create([
                 'source' => $source,
-                'gateway' => (string) env('PAYMENT_GATEWAY', 'unknown'),
+                'gateway' => (string) config('payment.gateway', 'unknown'),
                 'type' => $type,
                 'reference_type' => $referenceType,
                 'reference_id' => $referenceId,

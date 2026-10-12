@@ -17,6 +17,7 @@ import {
   XCircle,
   Loader2,
   RefreshCw,
+  BookOpen,
 } from "lucide-react";
 import { LIVE_MATCH } from "../lib/data";
 import { useApp } from "../lib/store";
@@ -28,6 +29,7 @@ import {
   laravelJoinMatch,
   laravelMatchLobby,
   laravelMatchState,
+  laravelRematch,
   laravelStartMatch,
   laravelSubmitAnswer,
   type LiveMatchLobbyRow,
@@ -63,18 +65,21 @@ const POINTS = LIVE_MATCH.pointsPerQuestion;
 const BOT_POOL = [
   { name: "نگار کریمی", skill: 0.62, color: "#57B8FF" },
   { name: "کاوه رحیمی", skill: 0.42, color: "#20D6B5" },
-  { name: "النا فرهادی", skill: 0.78, color: "#8B5CF6" },
-  { name: "سامان توکلی", skill: 0.5, color: "#F5A623" },
+  { name: "النا فرهادی", skill: 0.78, color: "#7C3AED" },
+  { name: "سامان توکلی", skill: 0.5, color: "#F59E0B" },
   { name: "ترانه نعمتی", skill: 0.68, color: "#EC4899" },
-  { name: "بهراد کیانی", skill: 0.35, color: "#F0445B" },
+  { name: "بهراد کیانی", skill: 0.35, color: "#EF4444" },
 ];
 
 type MatchQuestion = {
   id: string;
   text: string;
   options: string[];
-  correct: number;
-  explanation: string;
+  /** Hidden by the live server until the match finishes. */
+  correct?: number;
+  explanation?: string;
+  /** The viewer's own graded pick — only present after the match finishes. */
+  myAnswer?: number | null;
 };
 
 function buildMatchQuestions(pool: MatchQuestion[]): MatchQuestion[] {
@@ -105,12 +110,12 @@ const rankXp = (rank: number) => (rank === 1 ? 60 : rank === 2 ? 40 : rank === 3
 function rowsFromMatch(match: LiveMatchState, viewerName: string): { rows: Row[]; rank: number } {
   const rows: Row[] = match.players.map((p) => ({
     name: p.name,
-    color: p.isViewer ? "#2F8CFF" : "#57B8FF",
+    color: p.isViewer ? "#3B82F6" : "#57B8FF",
     score: p.score,
     isUser: p.isViewer,
   }));
   if (!rows.some((r) => r.isUser)) {
-    rows.push({ name: viewerName, color: "#2F8CFF", score: 0, isUser: true });
+    rows.push({ name: viewerName, color: "#3B82F6", score: 0, isUser: true });
   }
   const sorted = [...rows].sort((a, b) => b.score - a.score);
   const rank = sorted.findIndex((r) => r.isUser) + 1;
@@ -147,6 +152,10 @@ export default function LiveMatch() {
   const [result, setResult] = useState<{ rows: Row[]; rank: number } | null>(null);
   const [shared, setShared] = useState(false);
   const [realTimeLeft, setRealTimeLeft] = useState(QUESTION_SECONDS);
+  /* Per-question verdict for real matches, derived from the server's own
+     correct-count delta — the answer key itself stays hidden until finish. */
+  const [pickVerdicts, setPickVerdicts] = useState<Record<number, "correct" | "wrong">>({});
+  const picksRef = useRef<(number | null)[]>([]);
 
   const tickRef = useRef(0);
   const streakRef = useRef(0);
@@ -297,7 +306,7 @@ export default function LiveMatch() {
   const currentIdx = backend && match ? match.questionIndex : idx;
   const userRow: Row = {
     name: user?.name || "شما",
-    color: "#2F8CFF",
+    color: "#3B82F6",
     score,
     isUser: true,
   };
@@ -319,6 +328,8 @@ export default function LiveMatch() {
       lastQuestionIndex.current = created.questionIndex;
       finishedRefMatch.current = false;
       setResult(null);
+      setPickVerdicts({});
+      picksRef.current = [];
       setPhase("matching");
       if (created.status === "playing") {
         setPhase("playing");
@@ -354,6 +365,8 @@ export default function LiveMatch() {
       lastQuestionIndex.current = joined.questionIndex;
       finishedRefMatch.current = false;
       setResult(null);
+      setPickVerdicts({});
+      picksRef.current = [];
       setPhase(joined.status === "playing" ? "playing" : "matching");
       if (joined.status === "waiting") {
         // wait for the host to start
@@ -370,11 +383,20 @@ export default function LiveMatch() {
     setSelected(i);
     setLocked(true);
     revealedRef.current = true;
+    const answeredIndex = match.questionIndex;
+    const beforeCorrect = match.players.find((p) => p.isViewer)?.correct ?? 0;
     try {
       const fresh = await laravelSubmitAnswer(match.id, i, match.questionIndex);
       matchRef.current = fresh;
       lastQuestionIndex.current = fresh.questionIndex;
       setMatch(fresh);
+      // The viewer's correct count only grows via their own graded answer,
+      // so a delta tells us the verdict without exposing the answer key.
+      const afterCorrect = fresh.players.find((p) => p.isViewer)?.correct ?? 0;
+      setPickVerdicts((v) => ({
+        ...v,
+        [answeredIndex]: afterCorrect > beforeCorrect ? "correct" : "wrong",
+      }));
       if (fresh.questionIndex !== match.questionIndex) {
         setSelected(null);
         setLocked(false);
@@ -419,9 +441,44 @@ export default function LiveMatch() {
     scoreRef.current = 0;
     correctRef.current = 0;
     revealedRef.current = false;
+    picksRef.current = [];
     finishedRef.current = false;
     setResult(null);
     setPhase("matching");
+  };
+
+  /* Rematch: in demo mode restart locally; in real mode reset the finished
+     match on the server (fresh questions, zeroed scores) and start again. */
+  const rematch = async () => {
+    if (!backend || matchId === null) {
+      startMatch();
+      return;
+    }
+    setBusy(true);
+    setMatchError("");
+    try {
+      const reset = await laravelRematch(matchId);
+      matchRef.current = reset;
+      setMatch(reset);
+      lastQuestionIndex.current = -1;
+      finishedRefMatch.current = false;
+      setResult(null);
+      setPickVerdicts({});
+      picksRef.current = [];
+      setPhase("matching");
+      const started = await laravelStartMatch(reset.id);
+      if (started.status === "playing") {
+        matchRef.current = started;
+        setMatch(started);
+        lastQuestionIndex.current = started.questionIndex;
+        setPhase("playing");
+      }
+    } catch (e) {
+      setMatchError(e instanceof Error ? e.message : "شروع دوباره ناموفق بود");
+      setPhase("lobby");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const reveal = (sel: number | null) => {
@@ -429,6 +486,7 @@ export default function LiveMatch() {
     revealedRef.current = true;
     setSelected(sel);
     setLocked(true);
+    picksRef.current[idx] = sel;
     if (sel !== null && sel === current.correct) {
       const bonus = Math.min(10, streakRef.current * 2);
       scoreRef.current += POINTS + bonus;
@@ -466,7 +524,7 @@ export default function LiveMatch() {
         score: b.score,
         isUser: false,
       })),
-      { name: user?.name || "شما", color: "#2F8CFF", score: scoreRef.current, isUser: true },
+      { name: user?.name || "شما", color: "#3B82F6", score: scoreRef.current, isUser: true },
     ];
     const sorted = [...rows].sort((a, b) => b.score - a.score);
     const rank = sorted.findIndex((r) => r.isUser) + 1;
@@ -493,11 +551,11 @@ export default function LiveMatch() {
     return (
       <div className="container-x max-w-xl py-14">
         <div className="card overflow-hidden">
-          <div className="bg-grid h-2 bg-gradient-to-l from-[#F0445B] to-[#8B5CF6]" />
+          <div className="bg-grid h-2 bg-gradient-to-l from-[#EF4444] to-[#7C3AED]" />
           <div className="space-y-6 p-7 sm:p-9">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <span className="chip mb-3 border border-[#F0445B]/25 bg-[#F0445B]/10 text-[#FF6B81]">
+                <span className="chip mb-3 border border-[#EF4444]/25 bg-[#EF4444]/10 text-[#FF6B81]">
                   <Swords size={13} /> رقابت زنده
                 </span>
                 <h1 className="text-2xl font-black">مسابقه کوییز زنده</h1>
@@ -529,7 +587,7 @@ export default function LiveMatch() {
                           <Avatar
                             name={p.name}
                             size="sm"
-                            color={p.isViewer ? "#2F8CFF" : "#57B8FF"}
+                            color={p.isViewer ? "#3B82F6" : "#57B8FF"}
                           />
                           <span className="text-[10px] text-muted">{p.name.split(" ")[0]}</span>
                         </div>
@@ -585,8 +643,8 @@ export default function LiveMatch() {
                     className={cls(
                       "flex flex-col items-start gap-1.5 rounded-xl border p-4 text-right transition-all",
                       mode === "ffa"
-                        ? "border-[#8B5CF6]/60 bg-[#8B5CF6]/10 shadow-glow-sm"
-                        : "border-line/60 bg-surface2/40 hover:border-[#8B5CF6]/30"
+                        ? "border-[#7C3AED]/60 bg-[#7C3AED]/10 shadow-glow-sm"
+                        : "border-line/60 bg-surface2/40 hover:border-[#7C3AED]/30"
                     )}
                   >
                     <span className="flex items-center gap-1.5 font-bold">
@@ -675,7 +733,7 @@ export default function LiveMatch() {
                               <span
                                 className={cls(
                                   "grid h-8 w-8 place-items-center rounded-lg text-[#FF6B81]",
-                                  row.mode === "1v1" ? "bg-sky/15" : "bg-[#8B5CF6]/15"
+                                  row.mode === "1v1" ? "bg-sky/15" : "bg-[#7C3AED]/15"
                                 )}
                               >
                                 {row.mode === "1v1" ? <UserRound size={15} /> : <Users size={15} />}
@@ -722,7 +780,7 @@ export default function LiveMatch() {
       backend && match
         ? match.players.map((p) => ({
             name: p.name,
-            color: p.isViewer ? "#2F8CFF" : "#57B8FF",
+            color: p.isViewer ? "#3B82F6" : "#57B8FF",
             score: p.score,
             isUser: p.isViewer,
           }))
@@ -732,6 +790,9 @@ export default function LiveMatch() {
           ];
     const liveSorted = [...liveRows].sort((a, b) => b.score - a.score);
     const displayTime = backend && match && match.questionEndsAt ? realTimeLeft : timeLeft;
+    const liveMatch = backend && match ? match : null;
+    const verdict = liveMatch ? pickVerdicts[qIndex] : undefined;
+    const correctIdx = current.correct ?? -1;
     return (
       <div className="container-x max-w-3xl py-8 sm:py-10">
         {/* live scoreboard */}
@@ -739,8 +800,8 @@ export default function LiveMatch() {
           <div className="mb-3 flex items-center justify-between">
             <span className="flex items-center gap-1.5 text-sm font-black">
               <span className="relative flex h-2.5 w-2.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#F0445B] opacity-60" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#F0445B]" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#EF4444] opacity-60" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#EF4444]" />
               </span>
               جدول زنده
               {backend && polling && (
@@ -776,7 +837,7 @@ export default function LiveMatch() {
         </div>
 
         {/* timer bar */}
-        <div className="sticky top-16 z-30 -mx-4 mb-5 border-b border-line/50 bg-base/90 px-4 py-3 backdrop-blur-md">
+        <div className="sticky top-16 z-30 -mx-4 mb-5 border-b border-line/50 bg-page/90 px-4 py-3 backdrop-blur-md">
           <div className="flex items-center justify-between">
             <span className="text-sm font-bold">مسابقه سرعتی</span>
             <span
@@ -793,7 +854,7 @@ export default function LiveMatch() {
             <div
               className={cls(
                 "h-full rounded-full transition-all duration-300",
-                displayTime <= 3 ? "bg-danger" : "bg-gradient-to-l from-[#F0445B] to-[#8B5CF6]"
+                displayTime <= 3 ? "bg-danger" : "bg-gradient-to-l from-[#EF4444] to-[#7C3AED]"
               )}
               style={{
                 width: `${(displayTime / (backend && match ? match.secondsPerQuestion : QUESTION_SECONDS)) * 100}%`,
@@ -807,13 +868,13 @@ export default function LiveMatch() {
           <p className="mb-6 text-lg font-bold leading-9">{current.text}</p>
           <div className="space-y-3">
             {current.options.map((o, i) => {
-              const isCorrect = locked && i === current.correct;
-              const isWrongPick = locked && selected === i && i !== current.correct;
+              const isCorrect = locked && i === correctIdx;
+              const isWrongPick = locked && selected === i && i !== correctIdx;
               return (
                 <button
                   key={i}
                   onClick={() => (backend ? void answerReal(i) : answer(i))}
-                  disabled={locked}
+                  disabled={locked || (liveMatch !== null && realTimeLeft <= 0)}
                   className={cls(
                     "flex w-full items-start gap-3 rounded-lg border px-4 py-3.5 text-right text-sm transition-all",
                     isCorrect
@@ -846,22 +907,50 @@ export default function LiveMatch() {
           </div>
 
           {locked && (
-            <div className="mt-5 rounded-lg border border-sky/25 bg-sky/5 p-4 animate-slide-up">
+            <div
+              className={cls(
+                "mt-5 rounded-lg border p-4 animate-slide-up",
+                verdict === "wrong"
+                  ? "border-danger/25 bg-danger/5"
+                  : verdict === "correct"
+                    ? "border-teal/25 bg-teal/5"
+                    : "border-sky/25 bg-sky/5"
+              )}
+            >
               <p
                 className={cls(
                   "mb-1 font-bold",
-                  selected === current.correct ? "text-teal" : "text-danger"
+                  verdict === "correct" ? "text-teal" : "text-danger"
                 )}
               >
-                {selected === current.correct
-                  ? "پاسخ درست بود! 🎉"
-                  : selected === null
-                    ? "زمان تمام شد ⏱️"
-                    : "پاسخ درست:"}
+                {backend
+                  ? verdict === "correct"
+                    ? "پاسخ درست بود!"
+                    : verdict === "wrong"
+                      ? selected === null
+                        ? "زمان تمام شد ⏱️"
+                        : "پاسخ اشتباه بود — پاسخ درست پس از پایان مسابقه اعلام می‌شود"
+                      : selected === null
+                        ? "زمان تمام شد — پاسخ درست پس از پایان مسابقه اعلام می‌شود"
+                        : "پاسخ ثبت شد — در انتظار محاسبه سرور…"
+                  : selected === current.correct
+                    ? "پاسخ درست بود!"
+                    : selected === null
+                      ? "زمان تمام شد ⏱️"
+                      : "پاسخ درست:"}
               </p>
-              <p className="text-sm leading-7 text-muted">
-                {current.options[current.correct]}. {current.explanation}
-              </p>
+              {backend ? (
+                verdict === "wrong" &&
+                selected !== null && (
+                  <p className="text-sm leading-7 text-muted">
+                    گزینه {toFa(selected + 1)}: {current.options[selected]}
+                  </p>
+                )
+              ) : (
+                <p className="text-sm leading-7 text-muted">
+                  {current.options[correctIdx]}. {current.explanation}
+                </p>
+              )}
               {backend ? (
                 <p className="mt-2 flex items-center gap-1.5 text-[11px] text-locked">
                   <Zap size={12} className="text-warn" /> منتظر پاسخ سایر بازیکنان — نتیجه با
@@ -883,12 +972,21 @@ export default function LiveMatch() {
   const rank = result?.rank ?? 1;
   const xpGain = rankXp(rank);
   const podium = result?.rows.slice(0, 3) ?? [];
+  /* The server reveals correct/explanation/myAnswer once the match finishes. */
+  const reviewQuestions: Pick<
+    MatchQuestion,
+    "text" | "options" | "correct" | "explanation" | "myAnswer"
+  >[] = backend && match ? match.questions : questions;
+  const reviewPicks: (number | null)[] =
+    backend && match
+      ? reviewQuestions.map((q) => (q.myAnswer === undefined ? null : q.myAnswer))
+      : picksRef.current;
   const shareText = `در مسابقه زنده آکادمی ایلیت مقام ${toFa(rank)} از ${toFa(result?.rows.length ?? 4)} را کسب کردم (${toFa(backend && match ? (match.players.find((p) => p.isViewer)?.correct ?? 0) : correctCount)} پاسخ درست) ⚡`;
   return (
     <div className="container-x max-w-xl py-12">
       <div className="card relative overflow-hidden p-8 text-center sm:p-10">
         <div className="bg-grid absolute inset-0 opacity-50" />
-        <div className="absolute -top-20 left-1/2 h-48 w-80 -translate-x-1/2 rounded-full bg-[#8B5CF6]/15 blur-[80px]" />
+        <div className="absolute -top-20 left-1/2 h-48 w-80 -translate-x-1/2 rounded-full bg-[#7C3AED]/15 blur-[80px]" />
         <div className="relative">
           <span className="chip mb-4 border border-warn/25 bg-warn/10 text-warn">
             <Trophy size={14} /> پایان مسابقه
@@ -927,7 +1025,7 @@ export default function LiveMatch() {
 
           <h2 className="text-2xl font-black">
             {rank === 1
-              ? "قهرمان مسابقه! 🏆"
+              ? "قهرمان مسابقه!"
               : rank === 2
                 ? "مقام دوم عالی بود!"
                 : rank === 3
@@ -963,6 +1061,56 @@ export default function LiveMatch() {
             </div>
           </div>
 
+          {/* question review — answer key + explanations are revealed now */}
+          <div className="mt-8 space-y-3 text-right">
+            <p className="flex items-center justify-center gap-1.5 text-sm font-black">
+              <BookOpen size={15} /> مرور سؤال‌ها
+            </p>
+            {reviewQuestions.map((q, i) => {
+              const myPick = reviewPicks[i] ?? null;
+              const key = q.correct ?? -1;
+              const answered = myPick !== null;
+              const wasRight = answered && myPick === key;
+              return (
+                <div
+                  key={i}
+                  className={cls(
+                    "rounded-lg border p-4",
+                    wasRight
+                      ? "border-teal/25 bg-teal/5"
+                      : answered
+                        ? "border-danger/25 bg-danger/5"
+                        : "border-line/50 bg-surface2/30"
+                  )}
+                >
+                  <p className="flex items-start gap-2 text-sm font-bold leading-7">
+                    <span
+                      className={cls(
+                        "grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black text-white",
+                        wasRight ? "bg-teal" : "bg-danger"
+                      )}
+                    >
+                      {toFa(i + 1)}
+                    </span>
+                    {q.text}
+                  </p>
+                  <p className="mt-2 text-xs leading-6 text-muted">
+                    <span className="font-bold text-teal">پاسخ درست:</span> {q.options[key] ?? "—"}
+                    {myPick !== null && !wasRight && (
+                      <span className="text-danger"> • پاسخ شما: {q.options[myPick]}</span>
+                    )}
+                    {!answered && <span className="text-warn"> • بی‌پاسخ</span>}
+                  </p>
+                  {q.explanation && (
+                    <p className="mt-1 border-t border-line/40 pt-2 text-xs leading-6 text-muted">
+                      {q.explanation}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <button
               onClick={() => {
@@ -972,13 +1120,10 @@ export default function LiveMatch() {
               }}
               className="btn-secondary btn-md"
             >
-              <Share2 size={15} /> {shared ? "کپی شد ✓" : "اشتراک نتیجه"}
+              <Share2 size={15} /> {shared ? "کپی شد" : "اشتراک نتیجه"}
             </button>
-            <button
-              onClick={() => (backend ? setPhase("lobby") : startMatch())}
-              className="btn-primary btn-md"
-            >
-              <RotateCcw size={15} /> مسابقه دوباره
+            <button onClick={() => void rematch()} disabled={busy} className="btn-primary btn-md">
+              <RotateCcw size={15} /> {busy ? "در حال آماده‌سازی…" : "مسابقه دوباره"}
             </button>
           </div>
 

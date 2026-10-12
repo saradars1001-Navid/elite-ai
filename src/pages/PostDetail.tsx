@@ -153,7 +153,7 @@ export default function PostDetail() {
         </div>
         {reported && (
           <p className="mt-2 text-[11px] text-teal animate-fade-in">
-            ✓ گزارش شما ثبت شد؛ توسط تیم مدیریت بررسی می‌شود.
+            گزارش شما ثبت شد؛ توسط تیم مدیریت بررسی می‌شود.
           </p>
         )}
       </article>
@@ -177,7 +177,7 @@ export default function PostDetail() {
                   placeholder="پاسخ خود را بنویسید…"
                   className="input resize-none"
                 />
-                {sent && <p className="mt-2 text-[11px] text-teal">✓ پاسخ شما ثبت شد</p>}
+                {sent && <p className="mt-2 text-[11px] text-teal">پاسخ شما ثبت شد</p>}
               </div>
             </div>
             <div className="mt-3 flex justify-end">

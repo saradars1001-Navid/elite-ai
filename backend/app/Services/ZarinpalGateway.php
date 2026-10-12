@@ -17,8 +17,8 @@ class ZarinpalGateway implements PaymentGateway
 
     public function __construct()
     {
-        $this->merchant = (string) env('ZARINPAL_MERCHANT_ID', '');
-        $this->sandbox = (bool) env('ZARINPAL_SANDBOX', false);
+        $this->merchant = (string) config('services.zarinpal.merchant_id', '');
+        $this->sandbox = filter_var(config('services.zarinpal.sandbox', false), FILTER_VALIDATE_BOOL);
         $this->endpoint = $this->sandbox ? 'https://sandbox.zarinpal.com/pg/v4/payment/' : 'https://payment.zarinpal.com/pg/v4/payment/';
         $this->gatewayUrl = $this->sandbox ? 'https://sandbox.zarinpal.com/pg/StartPay/' : 'https://payment.zarinpal.com/pg/StartPay/';
     }

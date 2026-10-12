@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Plus, Pencil, Save, Trash2 } from "lucide-react";
+import { Plus, Pencil, Save, Trash2, Wrench } from "lucide-react";
 import { TOOL_CATEGORIES } from "../../lib/data";
 import { useApp } from "../../lib/store";
-import { AdminHeader, Table, Td, Badge, faNum } from "./AdminUI";
+import { AdminHeader, Table, Td, TRow, Badge, faNum } from "./AdminUI";
 import { cls, toFa, uid } from "../../lib/utils";
 import { Modal } from "../../components/ui";
 import type { AiTool } from "../../lib/types";
@@ -113,24 +113,24 @@ export default function AdminTools() {
         desc={`${faNum(aiTools.length)} ابزار بررسی‌شده — افزودن، ویرایش و حذف ابزار`}
         action={
           <button onClick={openNew} className="btn-primary btn-md">
-            <Plus size={15} /> افزودن ابزار {saved && "✓"}
+            <Plus size={15} /> افزودن ابزار
           </button>
         }
       />
 
       {saved && (
         <div className="card mb-6 border border-teal/25 p-4 text-sm text-teal animate-fade-in">
-          ✓ تغییرات ذخیره و در صفحه بانک ابزارها اعمال شد.
+          تغییرات ذخیره و در صفحه بانک ابزارها اعمال شد.
         </div>
       )}
 
       <Table head={["ابزار", "دسته‌بندی", "قیمت", "سطح", "امتیاز", "اقدامات"]}>
         {aiTools.map((t) => (
-          <tr key={t.id} className="transition-colors hover:bg-surface2/30">
+          <TRow key={t.id}>
             <Td>
               <div className="flex items-center gap-2.5">
                 <span className="grid h-9 w-9 place-items-center rounded-lg bg-navy text-base">
-                  🛠️
+                  <Wrench size={18} />
                 </span>
                 <div>
                   <p className="font-bold">{t.name}</p>
@@ -149,7 +149,7 @@ export default function AdminTools() {
             <Td>
               <Badge>{t.level}</Badge>
             </Td>
-            <Td className="font-bold text-warn">{toFa(t.rating)} ★</Td>
+            <Td className="font-bold text-warn">{toFa(t.rating)}</Td>
             <Td>
               <div className="flex items-center gap-1">
                 <button
@@ -168,7 +168,7 @@ export default function AdminTools() {
                 </button>
               </div>
             </Td>
-          </tr>
+          </TRow>
         ))}
       </Table>
 
