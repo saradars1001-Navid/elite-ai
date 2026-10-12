@@ -125,6 +125,12 @@ class IDPayGateway implements PaymentGateway
         // shared secret is configured. Without a secret the check is skipped and
         // security stays with the server-to-server re-verification.
         $secret = (string) (config('services.idpay.webhook_secret', '') ?: config('payment.hmac.secret', ''));
+        if ($secret === '') {
+            // Unsigned gateway: nothing to verify here. The controller only trusts the
+            // notification after IDPay's server-to-server verification, and never lets
+            // an unauthenticated delivery fail or refund an order.
+            return true;
+        }
         $header = (string) config('payment.hmac.header', 'X-Signature');
         $algo = (string) config('payment.hmac.algo', 'sha256');
 

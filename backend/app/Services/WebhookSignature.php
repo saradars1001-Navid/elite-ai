@@ -13,10 +13,10 @@ use Illuminate\Http\Request;
  *
  *   signature = hash_hmac(algo, rawBody, secret)
  *
- * Configuration is read from config (payment.hmac.*) so any gateway can opt
- * in without code changes. An empty secret disables the check (gateways without
- * signatures remain protected by the server-to-server re-verification in the
- * controller).
+ * Configuration is read from config (payment.hmac.*). This helper FAILS CLOSED:
+ * with no secret nothing can be authenticated, so verification returns false.
+ * A gateway that does not sign its webhooks must decide that itself (it returns
+ * true and the notification is trusted only after server-to-server verification).
  */
 final class WebhookSignature
 {
@@ -28,8 +28,8 @@ final class WebhookSignature
     ): bool {
         $secret = $secret ?? (string) config('payment.hmac.secret', '');
         if ($secret === '') {
-            return true;
-        } // not configured — skip
+            return false; // no secret configured: nothing can be verified, so reject
+        }
 
         $provided = trim((string) $request->header($header, ''));
         if ($provided === '') {
