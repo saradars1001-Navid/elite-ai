@@ -1,5 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// LEGACY: payments are handled by the Laravel backend (see the note in
+// payment-webhook/index.ts). This creates Supabase-side pending orders only and
+// does not talk to a payment gateway; keep it off in production alongside Laravel.
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",

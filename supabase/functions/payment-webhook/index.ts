@@ -13,9 +13,21 @@ const json = (data: unknown, status = 200) =>
 
 type PaymentStatus = "موفق" | "ناموفق" | "لغوشده";
 
+/*
+ * LEGACY — disabled by default.
+ *
+ * Payments are owned by the Laravel backend (backend/app/Http/Controllers/
+ * PaymentWebhookController.php), which verifies every notification with the gateway
+ * before granting access. This function instead trusts a shared header and sets the
+ * purchase to "موفق" without any gateway check, so it must not run next to the
+ * Laravel deployment. It only answers when ENABLE_LEGACY_SUPABASE_PAYMENTS=true is
+ * set explicitly (e.g. for a Supabase-only demo).
+ */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+  if (Deno.env.get("ENABLE_LEGACY_SUPABASE_PAYMENTS") !== "true")
+    return json({ error: "legacy_payments_disabled", use: "laravel_payment_webhook" }, 410);
   const secret = Deno.env.get("PAYMENT_WEBHOOK_SECRET") ?? "";
   if (!secret || req.headers.get("x-payment-secret") !== secret)
     return json({ error: "unauthorized" }, 401);
