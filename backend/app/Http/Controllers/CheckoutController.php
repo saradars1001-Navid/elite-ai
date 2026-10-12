@@ -7,6 +7,7 @@ use App\Models\Coupon;
 use App\Models\DiscountRule;
 use App\Models\Purchase;
 use App\Models\WalletTransaction;
+use App\Services\GatewayBinding;
 use App\Services\NotificationService;
 use App\Services\PaymentEventLogger;
 use App\Services\PaymentGateway;
@@ -107,7 +108,7 @@ class CheckoutController extends Controller
         $callbackUrl = rtrim((string) config('app.url'), '/').'/api/v1/payment/callback?purchase='.$existing->id;
         try {
             $result = $this->gateway->initiate($pricing['finalPrice'], 'خرید فصل '.$chapter->title.' — آکادمی ایلیت', $callbackUrl, (string) $existing->id);
-            $existing->update(['gateway_ref' => $result['ref']]);
+            $existing->update(['gateway_ref' => $result['ref'], 'gateway_authority' => $result['ref']]);
 
             return response()->json(['purchaseId' => $existing->id, 'amount' => $pricing['finalPrice'], 'checkoutUrl' => $result['url']]);
         } catch (\Throwable $e) {
@@ -141,28 +142,56 @@ class CheckoutController extends Controller
         // (Zarinpal Status/Authority, IDPay status/track_id) via verifyFromCallback.
         $status = 'failed';
         $proof = $this->gateway->verifyFromCallback($request);
-        if ($proof['ok'] && $proof['authority'] !== '') {
-            try {
-                $verify = $this->gateway->verify($proof['authority'], (int) $purchase->price, (string) $purchase->id);
-                PaymentEventLogger::verify($eventId, $verify);
-                if ($verify['ok']) {
-                    DB::transaction(function () use ($purchase, $verify, $proof) {
-                        $purchase->update([
-                            'status' => 'paid',
-                            'receipt_id' => 'REC-'.strtoupper(Str::random(10)),
-                            'gateway_ref' => $verify['ref'] ?? $proof['ref'] ?? $purchase->gateway_ref,
-                            'refunded_at' => null,
-                        ]);
-                        $coupon = $purchase->coupon_code ? Coupon::where('code', $purchase->coupon_code)->first() : null;
-                        if ($coupon) {
-                            $coupon->increment('used_count');
-                        }
-                    });
-                    $status = 'success';
+        if (! $proof['ok']) {
+            // The buyer cancelled or the gateway reported a failure.
+            $this->markFailed($purchase);
+            PaymentEventLogger::finish($eventId, 'failed');
+
+            return $this->redirectResult($purchase, 'failed');
+        }
+        // The authority in the redirect must be the one this order was opened
+        // with. Otherwise a paid authority from another order could be replayed.
+        // A mismatched redirect leaves the order untouched.
+        if (! GatewayBinding::matches($purchase->expectedAuthority(), $proof['authority'])) {
+            PaymentEventLogger::finish($eventId, 'failed', null, 'authority_mismatch');
+
+            return $this->redirectResult($purchase, 'failed');
+        }
+        try {
+            $verify = $this->gateway->verify($proof['authority'], (int) $purchase->price, (string) $purchase->id);
+            PaymentEventLogger::verify($eventId, $verify);
+            if ($verify['ok']) {
+                $granted = DB::transaction(function () use ($purchase, $verify, $proof) {
+                    // Lock the order so a concurrent duplicate callback cannot
+                    // grant twice (or flip an already-paid order back).
+                    $locked = Purchase::whereKey($purchase->id)->lockForUpdate()->firstOrFail();
+                    if ($locked->status === 'paid') {
+                        return false;
+                    }
+                    $locked->update([
+                        'status' => 'paid',
+                        'receipt_id' => 'REC-'.strtoupper(Str::random(10)),
+                        'gateway_authority' => $locked->expectedAuthority(),
+                        'gateway_ref' => $verify['ref'] ?? $proof['ref'] ?? $locked->gateway_ref,
+                        'refunded_at' => null,
+                    ]);
+                    $coupon = $locked->coupon_code ? Coupon::where('code', $locked->coupon_code)->first() : null;
+                    if ($coupon) {
+                        $coupon->increment('used_count');
+                    }
+
+                    return true;
+                });
+                $status = 'success';
+                if (! $granted) {
+                    // Another request already granted access; nothing more to do.
+                    PaymentEventLogger::finish($eventId, 'idempotent');
+
+                    return $this->redirectResult($purchase, 'success');
                 }
-            } catch (\Throwable $e) {
-                report($e);
             }
+        } catch (\Throwable $e) {
+            report($e);
         }
         if ($status !== 'success') {
             $this->markFailed($purchase);
@@ -219,8 +248,8 @@ class CheckoutController extends Controller
         }
 
         $gatewayOk = true;
-        if ($purchase->gateway_ref) {
-            $result = $this->gateway->refund((string) $purchase->gateway_ref, (int) $purchase->price);
+        if ($purchase->expectedAuthority()) {
+            $result = $this->gateway->refund((string) $purchase->expectedAuthority(), (int) $purchase->price);
             $gatewayOk = $result['ok'];
         }
         if ($gatewayOk) {
@@ -322,19 +351,25 @@ class CheckoutController extends Controller
     /**
      * Mark an order as failed.
      *
-     * The unique [user_id, chapter_id, status] index allows a single failed row
-     * per chapter, so an older failed attempt for the same chapter is removed
-     * first; the payment-event log keeps the full audit trail either way.
+     * A paid or refunded order is never downgraded to failed (a late or
+     * duplicate callback must not revoke access). The unique
+     * [user_id, chapter_id, status] index allows a single failed row per
+     * chapter, so an older failed attempt for the same chapter is removed first;
+     * the payment-event log keeps the full audit trail either way.
      */
     private function markFailed(Purchase $purchase): void
     {
         DB::transaction(function () use ($purchase) {
-            Purchase::where('user_id', $purchase->user_id)
-                ->where('chapter_id', $purchase->chapter_id)
+            $current = Purchase::whereKey($purchase->getKey())->lockForUpdate()->first();
+            if (! $current || in_array($current->status, ['paid', 'refunded'], true)) {
+                return;
+            }
+            Purchase::where('user_id', $current->user_id)
+                ->where('chapter_id', $current->chapter_id)
                 ->where('status', 'failed')
-                ->whereKeyNot($purchase->getKey())
+                ->whereKeyNot($current->getKey())
                 ->delete();
-            $purchase->update(['status' => 'failed']);
+            $current->update(['status' => 'failed']);
         });
     }
 

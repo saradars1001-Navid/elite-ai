@@ -60,6 +60,8 @@ class NotificationTest extends TestCase
         Http::fake([
             'api.idpay.ir/*' => Http::response(['status' => 100, 'track_id' => 'TRACK-N-1'], 200),
         ]);
+        // The order was opened with this payment id at checkout.
+        $purchase->update(['gateway_ref' => 'pay-notif-1']);
 
         $this->postJson('/api/v1/payment/webhook', [
             'id' => 'pay-notif-1',

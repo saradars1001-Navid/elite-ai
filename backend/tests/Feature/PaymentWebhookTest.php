@@ -85,6 +85,8 @@ class PaymentWebhookTest extends TestCase
             'api.idpay.ir/*' => Http::response(['status' => 2, 'track_id' => null], 200),
         ]);
 
+        $purchase->update(['gateway_ref' => 'fake-payment-1']);
+
         $response = $this->postJson('/api/v1/payment/webhook', $this->payload($purchase));
 
         $response->assertStatus(422)->assertJson(['error' => 'verification_failed']);
@@ -100,6 +102,8 @@ class PaymentWebhookTest extends TestCase
         Http::fake([
             'api.idpay.ir/*' => Http::response(['status' => 100, 'track_id' => '12345678'], 200),
         ]);
+        // The order was opened with this payment id at checkout.
+        $purchase->update(['gateway_ref' => 'real-payment-1']);
 
         $response = $this->postJson('/api/v1/payment/webhook', $this->payload($purchase, [
             'id' => 'real-payment-1',
@@ -128,6 +132,7 @@ class PaymentWebhookTest extends TestCase
             'api.idpay.ir/*' => Http::response(['status' => 100, 'track_id' => '99999999'], 200),
         ]);
 
+        $purchase->update(['gateway_ref' => 'real-payment-2']);
         $payload = $this->payload($purchase, ['id' => 'real-payment-2', 'track_id' => '99999999']);
 
         $this->postJson('/api/v1/payment/webhook', $payload)->assertOk();
@@ -140,5 +145,66 @@ class PaymentWebhookTest extends TestCase
 
         $this->assertSame('paid', $purchase->fresh()->status);
         $this->assertSame($receipt, $purchase->fresh()->receipt_id);
+    }
+
+    /* ─────────────────── trust levels and order binding ─────────────────── */
+
+    public function test_webhook_for_a_different_payment_id_than_the_order_is_rejected_without_verify(): void
+    {
+        $purchase = $this->pendingPurchase($this->user());
+        $purchase->update(['gateway_ref' => 'real-payment-1']);
+
+        Http::fake();
+
+        // A paid notification for some other payment must not activate this order.
+        $this->postJson('/api/v1/payment/webhook', $this->payload($purchase, ['id' => 'someone-elses-payment']))
+            ->assertStatus(422)
+            ->assertJson(['error' => 'authority_mismatch']);
+
+        Http::assertNothingSent();
+        $this->assertSame('pending', $purchase->fresh()->status);
+    }
+
+    public function test_unauthenticated_failure_notification_cannot_fail_an_order(): void
+    {
+        $purchase = $this->pendingPurchase($this->user());
+        $purchase->update(['gateway_ref' => 'fake-payment-1']);
+
+        // No webhook secret is configured, so this delivery is unauthenticated.
+        config(['payment.webhook_secret' => '', 'services.idpay.webhook_secret' => '', 'payment.hmac.secret' => '']);
+
+        $this->postJson('/api/v1/payment/webhook', $this->payload($purchase, ['status' => 2]))
+            ->assertOk()
+            ->assertJson(['ok' => true, 'ignored' => true]);
+
+        $this->assertSame('pending', $purchase->fresh()->status);
+    }
+
+    public function test_authenticated_failure_notification_fails_a_pending_order(): void
+    {
+        $purchase = $this->pendingPurchase($this->user());
+        $purchase->update(['gateway_ref' => 'fake-payment-1']);
+
+        config(['payment.webhook_secret' => 'shared-secret']);
+
+        $this->postJson('/api/v1/payment/webhook', $this->payload($purchase, ['status' => 2]), [
+            'X-Webhook-Secret' => 'shared-secret',
+        ])->assertOk()->assertJson(['purchase_failed' => true]);
+
+        $this->assertSame('failed', $purchase->fresh()->status);
+    }
+
+    public function test_failure_notification_never_downgrades_a_paid_order(): void
+    {
+        $purchase = $this->pendingPurchase($this->user());
+        $purchase->update(['gateway_ref' => 'fake-payment-1', 'status' => 'paid']);
+
+        config(['payment.webhook_secret' => 'shared-secret']);
+
+        $this->postJson('/api/v1/payment/webhook', $this->payload($purchase, ['status' => 2]), [
+            'X-Webhook-Secret' => 'shared-secret',
+        ])->assertOk();
+
+        $this->assertSame('paid', $purchase->fresh()->status);
     }
 }

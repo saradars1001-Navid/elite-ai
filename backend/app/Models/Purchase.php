@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Purchase extends Model
 {
-    protected $fillable = ['checkout_id', 'user_id', 'chapter_id', 'price', 'base_price', 'discount_label', 'coupon_code', 'receipt_id', 'gateway_ref', 'status', 'refunded_at', 'refund_requested_at', 'refund_rejected_at', 'refund_reason'];
+    protected $fillable = ['checkout_id', 'user_id', 'chapter_id', 'price', 'base_price', 'discount_label', 'coupon_code', 'receipt_id', 'gateway_ref', 'gateway_authority', 'status', 'refunded_at', 'refund_requested_at', 'refund_rejected_at', 'refund_reason'];
 
     protected function casts(): array
     {
@@ -17,6 +17,12 @@ class Purchase extends Model
             'refund_requested_at' => 'datetime',
             'refund_rejected_at' => 'datetime',
         ];
+    }
+
+    /** The reference the order was opened with (authority or payment id). */
+    public function expectedAuthority(): ?string
+    {
+        return $this->gateway_authority ?: $this->gateway_ref ?: null;
     }
 
     /**

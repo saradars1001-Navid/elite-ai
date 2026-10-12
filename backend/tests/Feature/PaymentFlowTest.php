@@ -74,6 +74,7 @@ class PaymentFlowTest extends TestCase
         $user = $this->user();
         $chapter = $this->chapter();
         $purchase = $this->pendingPurchase($user, $chapter);
+        $purchase->update(['gateway_ref' => 'AUTH-123']);
 
         // Fake the Zarinpal v4 verify API: code 100 = paid, with a ref_id.
         Http::fake([
@@ -100,6 +101,7 @@ class PaymentFlowTest extends TestCase
         $user = $this->user();
         $chapter = $this->chapter();
         $purchase = $this->pendingPurchase($user, $chapter);
+        $purchase->update(['gateway_ref' => 'AUTH-FAKE']);
 
         // Verify API says the authority was never paid (code != 100).
         Http::fake([
@@ -137,6 +139,7 @@ class PaymentFlowTest extends TestCase
         $user = $this->user();
         $chapter = $this->chapter();
         $purchase = $this->pendingPurchase($user, $chapter);
+        $purchase->update(['gateway_ref' => 'pay-9']);
 
         Http::fake([
             'api.idpay.ir/*' => Http::response(['status' => 100, 'track_id' => 'TRACK-PUR-1'], 200),
@@ -154,6 +157,7 @@ class PaymentFlowTest extends TestCase
         $this->app->instance(PaymentGateway::class, new IDPayGateway);
         $user = $this->user();
         $purchase = $this->pendingPurchase($user, $this->chapter());
+        $purchase->update(['gateway_ref' => 'pay-10']);
 
         // Verify API returns status 2 (failed) although the redirect said status=1.
         Http::fake([
@@ -205,6 +209,7 @@ class PaymentFlowTest extends TestCase
             'balance_after' => 1000,
             'status' => 'pending',
             'description' => 'شارژ کیف پول',
+            'gateway_ref' => 'pay-20',
         ]);
 
         Http::fake([
@@ -233,6 +238,7 @@ class PaymentFlowTest extends TestCase
             'balance_after' => 0,
             'status' => 'pending',
             'description' => 'شارژ کیف پول',
+            'gateway_ref' => 'pay-21',
         ]);
 
         Http::fake([
@@ -244,8 +250,9 @@ class PaymentFlowTest extends TestCase
         $this->get($url)->assertRedirect(self::FRONTEND.'/profile?wallet=success');
         $this->assertSame(100000, (int) $user->fresh()->wallet_balance);
 
-        // Replay: the transaction is no longer pending — balance must not change.
-        $this->get($url)->assertRedirect(self::FRONTEND.'/profile?wallet=failed');
+        // Replay: the charge is already completed — balance must not change, and the
+        // buyer is told the payment succeeded (it did; nothing was credited twice).
+        $this->get($url)->assertRedirect(self::FRONTEND.'/profile?wallet=success');
         $this->assertSame(100000, (int) $user->fresh()->wallet_balance);
         $this->assertSame('completed', $tx->fresh()->status);
     }
@@ -262,6 +269,7 @@ class PaymentFlowTest extends TestCase
             'balance_after' => 1000,
             'status' => 'pending',
             'description' => 'شارژ کیف پول',
+            'gateway_ref' => 'pay-22',
         ]);
 
         Http::fake([
@@ -334,5 +342,56 @@ class PaymentFlowTest extends TestCase
 
         $this->assertSame(0, (int) $user->fresh()->wallet_balance);
         $this->assertSame(1, Purchase::where('chapter_id', $chapter->id)->where('status', 'paid')->count());
+    }
+
+    /* ───────────────── redirect must belong to the same order ───────────────── */
+
+    public function test_callback_with_another_orders_authority_grants_nothing(): void
+    {
+        $user = $this->user();
+        $chapterA = $this->chapter('ch-bind-a', 50000);
+        $chapterB = $this->chapter('ch-bind-b', 50000);
+        $paidElsewhere = $this->pendingPurchase($user, $chapterA);
+        $paidElsewhere->update(['gateway_ref' => 'AUTH-OTHER']);
+        $victimOrder = $this->pendingPurchase($user, $chapterB);
+        $victimOrder->update(['gateway_ref' => 'AUTH-OWN']);
+
+        // Replaying a genuine authority from order A against order B (same amount).
+        Http::fake([
+            '*/pg/v4/payment/verify.json' => Http::response(['data' => ['code' => 100, 'ref_id' => 'REF-X']], 200),
+        ]);
+
+        $this->get('/api/v1/payment/callback?purchase='.$victimOrder->id.'&Status=OK&Authority=AUTH-OTHER')
+            ->assertRedirect(self::FRONTEND.'/payment?status=failed&purchase='.$victimOrder->id);
+
+        Http::assertNothingSent();
+        $this->assertSame('pending', $victimOrder->fresh()->status);
+        $this->assertSame('pending', $paidElsewhere->fresh()->status);
+    }
+
+    public function test_wallet_callback_with_another_charges_authority_credits_nothing(): void
+    {
+        $this->app->instance(PaymentGateway::class, new IDPayGateway);
+        $user = $this->user(['wallet_balance' => 0]);
+        $tx = WalletTransaction::create([
+            'user_id' => $user->id,
+            'type' => 'charge',
+            'amount' => 100000,
+            'balance_after' => 0,
+            'status' => 'pending',
+            'description' => 'شارژ کیف پول',
+            'gateway_ref' => 'pay-OWN',
+        ]);
+
+        Http::fake([
+            'api.idpay.ir/*' => Http::response(['status' => 100, 'track_id' => 'TRACK-OTHER'], 200),
+        ]);
+
+        $this->get('/api/v1/wallet/callback?tx='.$tx->id.'&id=pay-OTHER&track_id=TRACK-OTHER&status=1')
+            ->assertRedirect(self::FRONTEND.'/profile?wallet=failed');
+
+        Http::assertNothingSent();
+        $this->assertSame(0, (int) $user->fresh()->wallet_balance);
+        $this->assertSame('pending', $tx->fresh()->status);
     }
 }

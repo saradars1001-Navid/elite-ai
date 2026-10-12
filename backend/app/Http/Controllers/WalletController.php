@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use App\Models\WalletTransaction;
+use App\Services\GatewayBinding;
 use App\Services\NotificationService;
 use App\Services\PaymentEventLogger;
 use App\Services\PaymentGateway;
@@ -59,7 +61,7 @@ class WalletController extends Controller
         $callbackUrl = rtrim((string) config('app.url'), '/').'/api/v1/wallet/callback?tx='.$transaction->id;
         try {
             $result = $this->gateway->initiate($amount, 'شارژ کیف پول ایلیت', $callbackUrl, $referenceId);
-            $transaction->update(['gateway_ref' => $result['ref']]);
+            $transaction->update(['gateway_ref' => $result['ref'], 'gateway_authority' => $result['ref']]);
 
             return response()->json([
                 'transactionId' => $transaction->id,
@@ -80,16 +82,34 @@ class WalletController extends Controller
         $frontend = rtrim((string) config('app.frontend_url'), '/').'/profile?wallet=';
         $transaction = WalletTransaction::find((int) $request->query('tx'));
         $eventId = PaymentEventLogger::start('callback', 'payment', $transaction ? 'wallet' : null, $transaction ? 'wallet-'.$transaction->id : null, $request->query());
-        if (! $transaction || $transaction->status !== 'pending') {
-            PaymentEventLogger::finish($eventId, 'failed', null, $transaction ? 'not_pending' : 'transaction_not_found');
+        if (! $transaction) {
+            PaymentEventLogger::finish($eventId, 'failed', null, 'transaction_not_found');
+
+            return redirect()->to($frontend.'failed');
+        }
+        if ($transaction->status === 'completed') {
+            // Replayed redirect after a successful credit: report success, credit nothing.
+            PaymentEventLogger::finish($eventId, 'idempotent');
+
+            return redirect()->to($frontend.'success');
+        }
+        if ($transaction->status !== 'pending') {
+            PaymentEventLogger::finish($eventId, 'failed', null, 'not_pending');
 
             return redirect()->to($frontend.'failed');
         }
 
         $proof = $this->gateway->verifyFromCallback($request);
-        if (! $proof['ok'] || $proof['authority'] === '') {
-            $transaction->update(['status' => 'failed']);
+        if (! $proof['ok']) {
+            $this->markFailed($transaction);
             PaymentEventLogger::finish($eventId, 'failed', null, 'gateway_callback_rejected');
+
+            return redirect()->to($frontend.'failed');
+        }
+        // The authority must be the one this charge was opened with (see GatewayBinding).
+        // A mismatched redirect leaves the charge untouched.
+        if (! GatewayBinding::matches($transaction->expectedAuthority(), $proof['authority'])) {
+            PaymentEventLogger::finish($eventId, 'failed', null, 'authority_mismatch');
 
             return redirect()->to($frontend.'failed');
         }
@@ -102,25 +122,39 @@ class WalletController extends Controller
         }
         PaymentEventLogger::verify($eventId, $verify);
         if (empty($verify['ok'])) {
-            $transaction->update(['status' => 'failed']);
+            $this->markFailed($transaction);
             PaymentEventLogger::finish($eventId, 'failed');
 
             return redirect()->to($frontend.'failed');
         }
 
-        // Credit the balance inside a transaction so the ledger always balances.
-        DB::transaction(function () use ($transaction, $verify) {
-            $user = $transaction->user;
-            $balance = (int) $user->wallet_balance + (int) $transaction->amount;
+        // Credit inside a transaction, locking both the charge row and the user
+        // row, so duplicate callbacks cannot credit twice and concurrent credits
+        // cannot overwrite each other's balance.
+        $credited = DB::transaction(function () use ($transaction, $verify, $proof) {
+            $tx = WalletTransaction::whereKey($transaction->id)->lockForUpdate()->firstOrFail();
+            if ($tx->status !== 'pending') {
+                return null;
+            }
+            $user = User::whereKey($tx->user_id)->lockForUpdate()->firstOrFail();
+            $balance = (int) $user->wallet_balance + (int) $tx->amount;
             $user->update(['wallet_balance' => $balance]);
-            $transaction->update([
+            $tx->update([
                 'status' => 'completed',
                 'balance_after' => $balance,
-                'gateway_ref' => $verify['ref'] ?? $proof['ref'] ?? $transaction->gateway_ref,
+                'gateway_authority' => $tx->expectedAuthority(),
+                'gateway_ref' => $verify['ref'] ?? $proof['ref'] ?? $tx->gateway_ref,
             ]);
+
+            return $user;
         });
+        if ($credited === null) {
+            PaymentEventLogger::finish($eventId, 'idempotent');
+
+            return redirect()->to($frontend.'success');
+        }
         app(NotificationService::class)->send(
-            $transaction->user,
+            $credited,
             'payment',
             'کیف پول شما شارژ شد',
             number_format((int) $transaction->amount).' تومان به کیف پول شما اضافه شد.',
@@ -129,5 +163,11 @@ class WalletController extends Controller
         PaymentEventLogger::finish($eventId, 'processed');
 
         return redirect()->to($frontend.'success');
+    }
+
+    /** A pending charge becomes failed; a completed one is never downgraded. */
+    private function markFailed(WalletTransaction $transaction): void
+    {
+        WalletTransaction::whereKey($transaction->id)->where('status', 'pending')->update(['status' => 'failed']);
     }
 }

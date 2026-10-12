@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Coupon;
 use App\Models\Purchase;
+use App\Models\User;
 use App\Models\WalletTransaction;
+use App\Services\GatewayBinding;
 use App\Services\NotificationService;
 use App\Services\PaymentEventLogger;
 use App\Services\PaymentGateway;
@@ -20,6 +22,13 @@ use Illuminate\Support\Str;
  * before any state change. Handles both chapter purchases and wallet charges,
  * idempotently. Every incoming event (including rejected ones) is recorded in
  * the payment_events audit log for review in the admin panel.
+ *
+ * Trust levels:
+ *  - Authenticated delivery (a shared secret or HMAC is configured and matched):
+ *    may mark an order failed, and may apply a refund notification.
+ *  - Unauthenticated delivery (no secret configured): may only activate an
+ *    order, and only after the gateway confirms it. Anyone can POST to this
+ *    URL, so failure/refund notifications from it are ignored.
  */
 class PaymentWebhookController extends Controller
 {
@@ -49,6 +58,7 @@ class PaymentWebhookController extends Controller
         if (! $this->gateway->verifyWebhookSignature($request)) {
             return $fail('invalid_signature', 401);
         }
+        $authenticated = $this->deliveryIsAuthenticated();
 
         $notification = $this->gateway->parseWebhook($request);
         if (empty($notification['supported'])) {
@@ -72,13 +82,42 @@ class PaymentWebhookController extends Controller
         PaymentEventLogger::type($eventId, $notification['type']);
 
         if ($notification['type'] === 'refund') {
+            // Refund notifications change money state, so they must be authenticated.
+            // No active gateway emits them today; this keeps it safe if one does.
+            if (! $authenticated) {
+                PaymentEventLogger::finish($eventId, 'ignored', null, 'unauthenticated_refund');
+
+                return response()->json(['ok' => true, 'ignored' => true]);
+            }
+
             return $this->applyRefund($entity, $isWallet, $eventId);
         }
 
         // 'payment' notification — failed payments are recorded as-is, paid
         // payments must survive a server-to-server verification first.
         if ($notification['status'] !== 'paid') {
+            if (! $authenticated) {
+                // Anyone can send an unsigned "failed" notification for a guessed
+                // id; ignore it rather than changing the order.
+                PaymentEventLogger::finish($eventId, 'ignored', null, 'unauthenticated_failure');
+
+                return response()->json(['ok' => true, 'ignored' => true]);
+            }
+
             return $this->markFailed($entity, $isWallet, $eventId);
+        }
+
+        // The payment id must be the one this order was opened with (see GatewayBinding).
+        // A replayed delivery for an order that is already settled is a no-op.
+        if ($this->alreadySettled($entity, $isWallet)) {
+            PaymentEventLogger::finish($eventId, 'idempotent');
+
+            return response()->json(['ok' => true, 'idempotent' => true]);
+        }
+
+        // The payment id must be the one this order was opened with (see GatewayBinding).
+        if (! GatewayBinding::matches($entity->expectedAuthority(), (string) $notification['authority'])) {
+            return $fail('authority_mismatch', 422);
         }
 
         $amount = $isWallet ? (int) $entity->amount : (int) $entity->price;
@@ -97,29 +136,53 @@ class PaymentWebhookController extends Controller
         return $this->applyPaid($entity, $isWallet, $verify['ref'] ?? $notification['ref'], $eventId, $verify);
     }
 
+    private function alreadySettled(WalletTransaction|Purchase $entity, bool $isWallet): bool
+    {
+        return $isWallet
+            ? $entity->status === 'completed'
+            : $entity->status === 'paid';
+    }
+
+    /** True when the delivery carries a secret or HMAC signature that was checked. */
+    private function deliveryIsAuthenticated(): bool
+    {
+        return (string) config('payment.webhook_secret', '') !== ''
+            || (string) config('payment.hmac.secret', '') !== ''
+            || (string) config('services.idpay.webhook_secret', '') !== '';
+    }
+
     /* ──────────────────────────── state changes ──────────────────────────── */
 
     private function applyPaid(WalletTransaction|Purchase $entity, bool $isWallet, ?string $ref, int $eventId, array $verify): JsonResponse
     {
         if ($isWallet) {
             /** @var WalletTransaction $entity */
-            if ($entity->status === 'completed') {
+            $credited = DB::transaction(function () use ($entity, $ref) {
+                // Lock the charge and the user so a concurrent callback/webhook
+                // cannot credit the same charge twice or lose a balance update.
+                $tx = WalletTransaction::whereKey($entity->getKey())->lockForUpdate()->firstOrFail();
+                if ($tx->status === 'completed') {
+                    return null;
+                }
+                $user = User::whereKey($tx->user_id)->lockForUpdate()->firstOrFail();
+                $balance = (int) $user->wallet_balance + (int) $tx->amount;
+                $user->update(['wallet_balance' => $balance]);
+                $tx->update([
+                    'status' => 'completed',
+                    'balance_after' => $balance,
+                    'gateway_authority' => $tx->expectedAuthority(),
+                    'gateway_ref' => $ref ?? $tx->gateway_ref,
+                ]);
+
+                return $user;
+            });
+            if ($credited === null) {
                 PaymentEventLogger::finish($eventId, 'idempotent', $verify);
 
                 return response()->json(['ok' => true, 'idempotent' => true]);
             }
-            DB::transaction(function () use ($entity, $ref) {
-                $user = $entity->user;
-                $balance = (int) $user->wallet_balance + (int) $entity->amount;
-                $user->update(['wallet_balance' => $balance]);
-                $entity->update([
-                    'status' => 'completed',
-                    'balance_after' => $balance,
-                    'gateway_ref' => $ref ?? $entity->gateway_ref,
-                ]);
-            });
             app(NotificationService::class)->send(
-                $entity->user,
+                $credited,
                 'payment',
                 'کیف پول شما شارژ شد',
                 number_format((int) $entity->amount).' تومان به کیف پول شما اضافه شد.',
@@ -131,23 +194,30 @@ class PaymentWebhookController extends Controller
         }
 
         /** @var Purchase $entity */
-        if ($entity->status === 'paid') {
+        $granted = DB::transaction(function () use ($entity, $ref) {
+            $locked = Purchase::whereKey($entity->getKey())->lockForUpdate()->firstOrFail();
+            if ($locked->status === 'paid') {
+                return false;
+            }
+            $locked->update([
+                'status' => 'paid',
+                'receipt_id' => $locked->receipt_id ?: 'REC-'.strtoupper(Str::random(10)),
+                'gateway_authority' => $locked->expectedAuthority(),
+                'gateway_ref' => $ref ?? $locked->gateway_ref,
+                'refunded_at' => null,
+            ]);
+            $coupon = $locked->coupon_code ? Coupon::where('code', $locked->coupon_code)->first() : null;
+            if ($coupon) {
+                $coupon->increment('used_count');
+            }
+
+            return true;
+        });
+        if (! $granted) {
             PaymentEventLogger::finish($eventId, 'idempotent', $verify);
 
             return response()->json(['ok' => true, 'idempotent' => true]);
         }
-        DB::transaction(function () use ($entity, $ref) {
-            $entity->update([
-                'status' => 'paid',
-                'receipt_id' => $entity->receipt_id ?: 'REC-'.strtoupper(Str::random(10)),
-                'gateway_ref' => $ref ?? $entity->gateway_ref,
-                'refunded_at' => null,
-            ]);
-            $coupon = $entity->coupon_code ? Coupon::where('code', $entity->coupon_code)->first() : null;
-            if ($coupon) {
-                $coupon->increment('used_count');
-            }
-        });
         $chapterTitle = $entity->chapter?->title ?? 'فصل آموزشی';
         app(NotificationService::class)->send(
             $entity->user,
@@ -165,19 +235,25 @@ class PaymentWebhookController extends Controller
     {
         if ($isWallet) {
             /** @var WalletTransaction $entity */
-            if ($entity->status !== 'completed') {
+            $debited = DB::transaction(function () use ($entity) {
+                $tx = WalletTransaction::whereKey($entity->getKey())->lockForUpdate()->firstOrFail();
+                if ($tx->status !== 'completed') {
+                    return null;
+                }
+                $user = User::whereKey($tx->user_id)->lockForUpdate()->firstOrFail();
+                $balance = max(0, (int) $user->wallet_balance - (int) $tx->amount);
+                $user->update(['wallet_balance' => $balance]);
+                $tx->update(['status' => 'failed', 'balance_after' => $balance, 'description' => 'شارژ کیف پول (بازگشت وجه از درگاه)']);
+
+                return $user;
+            });
+            if ($debited === null) {
                 PaymentEventLogger::finish($eventId, 'idempotent');
 
                 return response()->json(['ok' => true, 'idempotent' => true]);
             }
-            DB::transaction(function () use ($entity) {
-                $user = $entity->user;
-                $balance = max(0, (int) $user->wallet_balance - (int) $entity->amount);
-                $user->update(['wallet_balance' => $balance]);
-                $entity->update(['status' => 'failed', 'balance_after' => $balance, 'description' => 'شارژ کیف پول (بازگشت وجه از درگاه)']);
-            });
             app(NotificationService::class)->send(
-                $entity->user,
+                $debited,
                 'payment',
                 'بازگشت وجه کیف پول',
                 'مبلغ '.number_format((int) $entity->amount).' تومان از کیف پول شما کسر شد (بازگشت وجه از درگاه).',
@@ -189,12 +265,20 @@ class PaymentWebhookController extends Controller
         }
 
         /** @var Purchase $entity */
-        if ($entity->status === 'refunded') {
+        $refunded = DB::transaction(function () use ($entity) {
+            $locked = Purchase::whereKey($entity->getKey())->lockForUpdate()->firstOrFail();
+            if ($locked->status === 'refunded') {
+                return false;
+            }
+            $locked->update(['status' => 'refunded', 'refunded_at' => now()]);
+
+            return true;
+        });
+        if (! $refunded) {
             PaymentEventLogger::finish($eventId, 'idempotent');
 
             return response()->json(['ok' => true, 'idempotent' => true]);
         }
-        $entity->update(['status' => 'refunded', 'refunded_at' => now()]);
         $chapterTitle = $entity->chapter?->title ?? 'فصل آموزشی';
         app(NotificationService::class)->send(
             $entity->user,
@@ -212,26 +296,31 @@ class PaymentWebhookController extends Controller
     {
         if ($isWallet) {
             /** @var WalletTransaction $entity */
-            if ($entity->status === 'completed') {
-                PaymentEventLogger::finish($eventId, 'idempotent');
-
-                return response()->json(['ok' => true, 'idempotent' => true]);
-            }
-            $entity->update(['status' => 'failed']);
+            WalletTransaction::whereKey($entity->getKey())->where('status', 'pending')->update(['status' => 'failed']);
             PaymentEventLogger::finish($eventId, 'processed');
 
             return response()->json(['ok' => true, 'wallet_failed' => true]);
         }
 
         /** @var Purchase $entity */
-        if ($entity->status === 'paid' || $entity->status === 'refunded') {
-            PaymentEventLogger::finish($eventId, 'idempotent');
+        // Only a pending order can fail; a paid or refunded one is never downgraded.
+        $changed = DB::transaction(function () use ($entity) {
+            $locked = Purchase::whereKey($entity->getKey())->lockForUpdate()->first();
+            if (! $locked || $locked->status !== 'pending') {
+                return false;
+            }
+            // The unique [user, chapter, status] index allows one failed row per chapter.
+            Purchase::where('user_id', $locked->user_id)
+                ->where('chapter_id', $locked->chapter_id)
+                ->where('status', 'failed')
+                ->whereKeyNot($locked->getKey())
+                ->delete();
+            $locked->update(['status' => 'failed']);
 
-            return response()->json(['ok' => true, 'idempotent' => true]);
-        }
-        $entity->update(['status' => 'failed']);
-        PaymentEventLogger::finish($eventId, 'processed');
+            return true;
+        });
+        PaymentEventLogger::finish($eventId, $changed ? 'processed' : 'idempotent');
 
-        return response()->json(['ok' => true, 'purchase_failed' => true]);
+        return response()->json(['ok' => true, 'purchase_failed' => $changed]);
     }
 }

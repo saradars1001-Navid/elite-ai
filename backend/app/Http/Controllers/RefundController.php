@@ -78,8 +78,8 @@ class RefundController extends Controller
         }
 
         $gatewayOk = true;
-        if ($purchase->gateway_ref) {
-            $result = $this->gateway->refund((string) $purchase->gateway_ref, (int) $purchase->price);
+        if ($purchase->expectedAuthority()) {
+            $result = $this->gateway->refund((string) $purchase->expectedAuthority(), (int) $purchase->price);
             $gatewayOk = $result['ok'];
         }
         if (! $gatewayOk) {

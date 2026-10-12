@@ -69,6 +69,11 @@ class WalletRefundTest extends TestCase
                 return true;
             }
         });
+
+        // Refund notifications change money state, so they are only accepted from
+        // an authenticated delivery (shared secret). Send it on every request.
+        config(['payment.webhook_secret' => 'test-secret']);
+        $this->withHeaders(['X-Webhook-Secret' => 'test-secret']);
     }
 
     private function user(int $balance = 500000): User
