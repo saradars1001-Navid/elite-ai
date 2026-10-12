@@ -18,6 +18,7 @@ export default function Exam() {
   const [remaining, setRemaining] = useState(() => (ch?.exam.durationMinutes ?? 20) * 60);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
 
   const submittedRef = useRef(false);
@@ -49,9 +50,18 @@ export default function Exam() {
     if (submittedRef.current || !ch) return;
     submittedRef.current = true;
     setSubmitting(true);
+    setSubmitError(null);
     setTimeout(() => {
-      const attempt = submitExam(ch.exam.id, answers);
-      navigate(`/chapters/${ch.id}/exam/result/${attempt.id}`, { replace: true });
+      // The server grades the exam; the result page reads the stored attempt.
+      submitExam(ch.exam.id, answers)
+        .then((attempt) =>
+          navigate(`/chapters/${ch.id}/exam/result/${attempt.id}`, { replace: true })
+        )
+        .catch((err: unknown) => {
+          submittedRef.current = false;
+          setSubmitting(false);
+          setSubmitError(err instanceof Error ? err.message : "ثبت آزمون انجام نشد.");
+        });
     }, 700);
   }
 
@@ -246,6 +256,7 @@ export default function Exam() {
           </div>
         </div>
       </Modal>
+      {submitError && <p className="mt-4 text-center text-sm text-danger">{submitError}</p>}
     </div>
   );
 }

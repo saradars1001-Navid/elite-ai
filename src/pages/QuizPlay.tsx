@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   Clock,
@@ -12,6 +12,7 @@ import {
   Home,
 } from "lucide-react";
 import { useApp } from "../lib/store";
+import type { QuizResult } from "../lib/types";
 import { cls, toFa } from "../lib/utils";
 
 type Phase = "ready" | "playing" | "done";
@@ -26,12 +27,15 @@ export default function QuizPlay() {
   const [idx, setIdx] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [locked, setLocked] = useState(false);
-  const [correctCount, setCorrectCount] = useState(0);
-  const [wrong, setWrong] = useState<number[]>([]);
-  const [answers, setAnswers] = useState<number[]>([]);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [finished, setFinished] = useState(false);
   const [shared, setShared] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<QuizResult | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+
+  // Answers live in a ref so the timer callback always submits what was picked.
+  const answersRef = useRef<number[]>([]);
+  const startedAtRef = useRef(0);
 
   const questions = useMemo(() => (quiz ? [...quiz.questions] : []), [quiz]);
 
@@ -41,11 +45,12 @@ export default function QuizPlay() {
   useEffect(() => {
     if (phase !== "playing" || !quiz || !questions.length) return;
     setTimeLeft(quiz.durationSeconds);
+    startedAtRef.current = Date.now();
     const t = setInterval(() => {
       setTimeLeft((s) => {
         if (s <= 1) {
           clearInterval(t);
-          finish();
+          void finish();
           return 0;
         }
         return s - 1;
@@ -60,46 +65,36 @@ export default function QuizPlay() {
     setIdx(0);
     setSelected(null);
     setLocked(false);
-    setCorrectCount(0);
-    setWrong([]);
-    setAnswers([]);
+    answersRef.current = [];
+    setSubmitted(false);
+    setResult(null);
     setPhase("ready");
-    setFinished(false);
   }, [questions.length]);
 
   if (!quiz) {
     return <div className="container-x py-20 text-center text-muted">کوییز پیدا نشد.</div>;
   }
 
-  function finish() {
-    if (finished || !quiz) return;
-    setFinished(true);
-    const score = correctCount * quiz.pointsPerQuestion;
-    submitQuiz(
-      quiz.id,
-      score,
-      questions.length * quiz.pointsPerQuestion,
-      answers,
-      quiz.durationSeconds - timeLeft
-    );
+  async function finish() {
+    if (submitted || submitting || !quiz) return;
+    setSubmitted(true);
+    setSubmitting(true);
     setPhase("done");
+    const duration = Math.max(0, Math.round((Date.now() - startedAtRef.current) / 1000));
+    const graded = await submitQuiz(quiz.id, answersRef.current, duration);
+    setResult(graded);
+    setSubmitting(false);
   }
 
+  // Picking an answer only records it: the correct answer is revealed after submit,
+  // because the server grades the quiz and the answer key is not sent to the client.
   const answer = (i: number) => {
     if (locked || phase !== "playing") return;
     setSelected(i);
-    setAnswers((currentAnswers) => {
-      const next = [...currentAnswers];
-      next[idx] = i;
-      return next;
-    });
+    const next = [...answersRef.current];
+    next[idx] = i;
+    answersRef.current = next;
     setLocked(true);
-    const q = questions[idx];
-    if (i === q.correct) {
-      setCorrectCount((c) => c + 1);
-    } else {
-      setWrong((w) => [...w, idx]);
-    }
   };
 
   const next = () => {
@@ -108,13 +103,11 @@ export default function QuizPlay() {
       setSelected(null);
       setLocked(false);
     } else {
-      finish();
+      void finish();
     }
   };
 
   const fmt = (s: number) => `${toFa(Math.floor(s / 60))}:${toFa(String(s % 60).padStart(2, "0"))}`;
-  const score = correctCount * quiz.pointsPerQuestion;
-  const total = questions.length * quiz.pointsPerQuestion;
 
   /* ready screen */
   if (phase === "ready") {
@@ -132,9 +125,10 @@ export default function QuizPlay() {
             </span>
             <h1 className="text-2xl font-black">{quiz.title}</h1>
             <p className="text-sm leading-8 text-muted">
-              {toFa(questions.length)} سؤال در {toFa(quiz.durationSeconds)} ثانیه. بعد از هر پاسخ،
-              جواب درست با توضیح کوتاه نمایش داده می‌شود. هر پاسخ درست{" "}
-              {toFa(quiz.pointsPerQuestion)} امتیاز دارد.
+              {toFa(questions.length)} سؤال در {toFa(quiz.durationSeconds)} ثانیه. جواب درست و توضیح
+              هر سؤال بعد از ثبت کوییز نمایش داده می‌شود. هر پاسخ درست{" "}
+              {toFa(quiz.pointsPerQuestion)} امتیاز دارد؛ امتیاز فقط در اولین تلاش هر کوییز ثبت
+              می‌شود.
             </p>
             {dailyDone && (
               <div className="flex items-center gap-2 rounded-lg border border-teal/25 bg-teal/10 px-4 py-3 text-sm text-teal">
@@ -194,8 +188,7 @@ export default function QuizPlay() {
           <p className="mb-6 text-lg font-bold leading-9">{q.text}</p>
           <div className="space-y-3">
             {q.options.map((o, i) => {
-              const isCorrect = locked && i === q.correct;
-              const isWrongPick = locked && selected === i && i !== q.correct;
+              const isPicked = locked && selected === i;
               return (
                 <button
                   key={i}
@@ -203,50 +196,34 @@ export default function QuizPlay() {
                   disabled={locked}
                   className={cls(
                     "flex w-full items-start gap-3 rounded-lg border px-4 py-3.5 text-right text-sm transition-all",
-                    isCorrect
-                      ? "border-teal bg-teal/10 text-teal"
-                      : isWrongPick
-                        ? "border-danger bg-danger/10 text-danger"
-                        : locked
-                          ? "border-line/40 bg-surface2/30 text-locked"
-                          : "border-line/60 bg-surface2/40 text-muted hover:border-neon/40"
+                    isPicked
+                      ? "border-neon bg-neon/10 text-neon"
+                      : locked
+                        ? "border-line/40 bg-surface2/30 text-locked"
+                        : "border-line/60 bg-surface2/40 text-muted hover:border-neon/40"
                   )}
                 >
                   <span
                     className={cls(
                       "mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border text-xs font-bold",
-                      isCorrect
-                        ? "border-teal bg-teal text-white"
-                        : isWrongPick
-                          ? "border-danger bg-danger text-white"
-                          : "border-line text-locked"
+                      isPicked ? "border-neon bg-neon text-page" : "border-line text-locked"
                     )}
                   >
                     {toFa(i + 1)}
                   </span>
                   <span className="leading-7">{o}</span>
-                  {isCorrect && <CheckCircle2 size={17} className="mr-auto mt-1 shrink-0" />}
-                  {isWrongPick && <XCircle size={17} className="mr-auto mt-1 shrink-0" />}
                 </button>
               );
             })}
           </div>
 
           {locked && (
-            <div className="mt-5 rounded-lg border border-sky/25 bg-sky/5 p-4 animate-slide-up">
-              <p
-                className={cls(
-                  "mb-1 font-bold",
-                  selected === q.correct ? "text-teal" : "text-danger"
-                )}
-              >
-                {selected === q.correct ? "پاسخ درست بود!" : "پاسخ درست:"}
+            <div className="mt-5 flex flex-col gap-3 rounded-lg border border-sky/25 bg-sky/5 p-4 animate-slide-up sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted">
+                پاسخ شما ثبت شد. جواب درست در پایان کوییز نمایش داده می‌شود.
               </p>
-              <p className="text-sm leading-7 text-muted">
-                {q.options[q.correct]}. {q.explanation}
-              </p>
-              <button onClick={next} className="btn-primary btn-md mt-4 w-full sm:w-auto">
-                {idx + 1 < questions.length ? "سؤال بعدی" : "مشاهده نتیجه"}
+              <button onClick={next} className="btn-primary btn-md w-full sm:w-auto">
+                {idx + 1 < questions.length ? "سؤال بعدی" : "ثبت و مشاهده نتیجه"}
               </button>
             </div>
           )}
@@ -256,7 +233,11 @@ export default function QuizPlay() {
   }
 
   /* done */
-  const percentScore = Math.round((score / total) * 100);
+  const correctCount = result?.correct ?? 0;
+  const wrongCount = result ? questions.length - result.correct : 0;
+  const score = result?.score ?? 0;
+  const percentScore =
+    result && result.total > 0 ? Math.round((result.score / result.total) * 100) : 0;
   const msg =
     percentScore >= 90
       ? { t: "فوق‌العاده!", d: "شما یک متخصص واقعی هوش مصنوعی هستید!" }
@@ -275,9 +256,21 @@ export default function QuizPlay() {
           <span className="chip mb-4 border border-teal/25 bg-teal/10 text-teal">
             <Trophy size={14} /> کوییز به پایان رسید
           </span>
-          <p className="text-5xl font-black text-gradient">{toFa(percentScore)}٪</p>
-          <h2 className="mt-2 text-2xl font-black">{msg.t}</h2>
-          <p className="mt-1 text-sm text-muted">{msg.d}</p>
+          {submitting && <p className="mt-6 text-sm text-muted">در حال ثبت نتیجه…</p>}
+          {!submitting && !result && (
+            <div className="mx-auto mt-6 max-w-sm rounded-lg border border-warn/25 bg-warn/10 px-4 py-3 text-sm text-warn">
+              {user
+                ? "نتیجه ثبت نشد. اتصال را بررسی کنید و کوییز را دوباره انجام دهید."
+                : "برای ثبت امتیاز و مشاهده پاسخ‌های درست، ابتدا وارد شوید."}
+            </div>
+          )}
+          {result && (
+            <>
+              <p className="text-5xl font-black text-gradient">{toFa(percentScore)}٪</p>
+              <h2 className="mt-2 text-2xl font-black">{msg.t}</h2>
+              <p className="mt-1 text-sm text-muted">{msg.d}</p>
+            </>
+          )}
 
           <div className="mx-auto mt-6 grid max-w-xs grid-cols-3 gap-3">
             <div className="rounded-lg border border-teal/25 bg-teal/5 px-3 py-3">
@@ -285,7 +278,7 @@ export default function QuizPlay() {
               <p className="text-[11px] text-muted">درست</p>
             </div>
             <div className="rounded-lg border border-danger/25 bg-danger/5 px-3 py-3">
-              <p className="text-xl font-black text-danger">{toFa(wrong.length)}</p>
+              <p className="text-xl font-black text-danger">{toFa(wrongCount)}</p>
               <p className="text-[11px] text-muted">غلط</p>
             </div>
             <div className="rounded-lg border border-warn/25 bg-warn/5 px-3 py-3">
@@ -293,6 +286,45 @@ export default function QuizPlay() {
               <p className="text-[11px] text-muted">امتیاز</p>
             </div>
           </div>
+
+          {result && (
+            <div className="mx-auto mt-8 space-y-3 text-right">
+              <h3 className="text-sm font-black text-muted">مرور پاسخ‌ها</h3>
+              {questions.map((question, i) => {
+                const picked = answersRef.current[i];
+                const review = result.review[i];
+                const correctIdx = review?.correct ?? -1;
+                const isRight = picked === correctIdx;
+                return (
+                  <div
+                    key={question.id}
+                    className="rounded-lg border border-line/60 bg-surface2/40 p-4"
+                  >
+                    <p className="mb-2 text-sm font-bold leading-7">
+                      {toFa(i + 1)}. {question.text}
+                    </p>
+                    <p
+                      className={cls(
+                        "flex items-center gap-1.5 text-xs",
+                        isRight ? "text-teal" : "text-danger"
+                      )}
+                    >
+                      {isRight ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+                      پاسخ شما: {picked === undefined ? "پاسخ داده نشد" : question.options[picked]}
+                    </p>
+                    {!isRight && (
+                      <p className="mt-1 text-xs text-teal">
+                        پاسخ درست: {question.options[correctIdx]}
+                      </p>
+                    )}
+                    {review?.explanation && (
+                      <p className="mt-2 text-xs leading-6 text-muted">{review.explanation}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <button
@@ -309,7 +341,6 @@ export default function QuizPlay() {
             <button
               onClick={() => {
                 setPhase("ready");
-                setFinished(false);
               }}
               className="btn-ghost btn-md"
             >

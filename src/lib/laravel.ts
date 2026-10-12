@@ -1,5 +1,6 @@
 import { CHAPTERS } from "./data";
 import type {
+  QuizResult,
   AiTool,
   AppUser,
   Chapter,
@@ -128,14 +129,7 @@ function chapter(row: ApiUser): Chapter {
     previewCount: Number(row.previewCount ?? fallback?.previewCount ?? 1),
     lessons: apiLessons.length ? apiLessons : (fallback?.lessons ?? []),
     exercises: fallback?.exercises ?? [],
-    exam: fallback?.exam ?? {
-      id: `exam-${id}`,
-      chapterId: id,
-      title: "آزمون پایان فصل",
-      durationMinutes: 20,
-      passScore: 70,
-      questions: [],
-    },
+    exam: examFrom(row.exam as ApiUser | undefined, fallback?.exam, id),
     project: fallback?.project ?? {
       title: "پروژه نهایی",
       description: "پروژه عملی فصل",
@@ -143,6 +137,32 @@ function chapter(row: ApiUser): Chapter {
       tools: [],
       deliverable: "",
     },
+  };
+}
+
+/**
+ * Exam meta and (for buyers only) questions come from the API. The bundle keeps no
+ * exam questions, so an exam is never graded or shown from local data.
+ */
+function examFrom(
+  row: ApiUser | undefined,
+  fallback: Chapter["exam"] | undefined,
+  chapterId: string
+): Chapter["exam"] {
+  const questions = Array.isArray(row?.questions) ? (row?.questions as ApiUser[]) : [];
+  return {
+    id: String(row?.id || fallback?.id || `exam-${chapterId}`),
+    chapterId,
+    title: String(row?.title || fallback?.title || "آزمون پایان فصل"),
+    durationMinutes: Number(row?.durationMinutes ?? fallback?.durationMinutes ?? 20),
+    passScore: Number(row?.passScore ?? fallback?.passScore ?? 70),
+    questionCount: Number(row?.questionCount ?? questions.length),
+    questions: questions.map((q) => ({
+      id: String(q.id),
+      text: String(q.text || ""),
+      options: Array.isArray(q.options) ? (q.options as string[]) : [],
+      topic: String(q.topic || "عمومی"),
+    })),
   };
 }
 
@@ -156,12 +176,11 @@ function quiz(row: ApiUser): Quiz {
     difficulty: (row.difficulty || "آسان") as Quiz["difficulty"],
     durationSeconds: Number(row.durationSeconds || row.duration_seconds || 90),
     pointsPerQuestion: Number(row.pointsPerQuestion || row.points_per_question || 10),
+    // The server never sends the answer key: it arrives in the submit response.
     questions: questions.map((q) => ({
       id: String(q.id),
       text: String(q.text || ""),
       options: Array.isArray(q.options) ? (q.options as string[]) : [],
-      correct: Number(q.correct || 0),
-      explanation: String(q.explanation || ""),
     })),
   };
 }
@@ -437,7 +456,7 @@ export async function laravelSubmitQuiz(
   quizId: string,
   answers: number[],
   durationSeconds: number
-): Promise<{ score: number; total: number; correct: number }> {
+): Promise<QuizResult> {
   return request(`/quizzes/${encodeURIComponent(quizId)}/attempts`, {
     method: "POST",
     body: JSON.stringify({ answers, durationSeconds }),
@@ -461,6 +480,9 @@ export async function laravelSubmitExam(
   passed: boolean;
   awardedDiscount: number;
   discountChapterId: string | null;
+  firstAttempt: boolean;
+  topicAnalysis: { topic: string; correct: number; total: number }[];
+  review: { correct: number }[];
 } | null> {
   try {
     return await request(`/exams/${encodeURIComponent(chapterId)}/submit`, {

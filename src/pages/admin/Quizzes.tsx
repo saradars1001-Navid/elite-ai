@@ -449,7 +449,7 @@ function QuizEditor({
                 {toFa(i + 1)}. {qq.text}
               </p>
               <p className="mt-0.5 truncate text-xs text-teal">
-                پاسخ: {qq.options[qq.correct] ?? "—"}
+                پاسخ: {qq.options[qq.correct ?? 0] ?? "—"}
               </p>
             </div>
             <div className="flex shrink-0 gap-1">

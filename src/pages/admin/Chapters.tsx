@@ -987,7 +987,7 @@ function ExamTab({ draft, onChange }: { draft: Chapter; onChange: (c: Chapter) =
                 {toFa(i + 1)}. {q.text}
               </p>
               <p className="truncate text-xs text-muted">
-                {q.options[q.correct] ?? "—"} • موضوع: {q.topic}
+                {q.options[q.correct ?? 0] ?? "—"} • موضوع: {q.topic}
               </p>
             </div>
             <div className="flex shrink-0 gap-1.5">

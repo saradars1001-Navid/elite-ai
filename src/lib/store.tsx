@@ -19,6 +19,7 @@ import type {
   QuestionBankEntry,
   Quiz,
   QuizAttempt,
+  QuizResult,
   Role,
   SiteSettings,
   ShortVideo,
@@ -306,15 +307,13 @@ interface AppContextValue {
     exerciseId: string
   ) => { status: string; answer: string; score: number; submittedAt: string } | undefined;
   /* exam */
-  submitExam: (examId: string, answers: (number | null)[]) => ExamAttempt;
+  submitExam: (examId: string, answers: (number | null)[]) => Promise<ExamAttempt>;
   /* quiz */
   submitQuiz: (
     quizId: string,
-    score: number,
-    total: number,
     answers?: number[],
     durationSeconds?: number
-  ) => void;
+  ) => Promise<QuizResult | null>;
   isDailyQuizDone: (date: string) => boolean;
   /* leveling & live matches */
   xp: number;
@@ -813,55 +812,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const bestExamScore = (chapterId: string) =>
     Math.max(0, ...state.examAttempts.filter((a) => a.chapterId === chapterId).map((a) => a.score));
 
-  const submitExam = (examId: string, answers: (number | null)[]): ExamAttempt => {
-    const ch = state.chapters.find((c) => c.exam.id === examId)!;
-    const qs = ch.exam.questions;
-    const topics = new Map<string, { correct: number; total: number }>();
-    qs.forEach((qq, i) => {
-      const t = topics.get(qq.topic) || { correct: 0, total: 0 };
-      t.total += 1;
-      if (answers[i] === qq.correct) t.correct += 1;
-      topics.set(qq.topic, t);
-    });
-    const correct = qs.filter((_, i) => answers[i] === qs[i].correct).length;
-    const score = Math.round((correct / qs.length) * 100);
-    const passed = score >= ch.exam.passScore;
-    const rules = state.discountRules;
-    const awardedDiscount =
-      passed && ch.index < state.chapters.length
-        ? score >= rules.high.min
-          ? rules.high.percent
-          : score >= rules.mid.min
-            ? rules.mid.percent
-            : score >= rules.low.min
-              ? rules.low.percent
-              : 0
-        : 0;
+  /**
+   * Grading is server-side only: the client holds no answer key. The server records
+   * the attempt, awards XP and the discount on the first attempt only, and returns the
+   * result (and topic breakdown) that is stored here.
+   */
+  const submitExam = async (examId: string, answers: (number | null)[]): Promise<ExamAttempt> => {
+    const ch = state.chapters.find((c) => c.exam.id === examId);
+    if (!ch) throw new Error("آزمون پیدا نشد.");
+    if (!backendEnabled() || !user) {
+      throw new Error("برای ثبت آزمون باید وارد حساب شوید و به سرور متصل باشید.");
+    }
+    const server = await backendSubmitExam(ch.id, answers);
+    if (!server) throw new Error("ثبت آزمون انجام نشد. اتصال را بررسی کنید و دوباره تلاش کنید.");
+
     const attempt: ExamAttempt = {
-      id: uid("exam"),
+      id: String(server.attemptId),
       examId,
       chapterId: ch.id,
       chapterTitle: ch.title,
-      score,
-      correct,
-      wrong: qs.length - correct,
+      score: server.score,
+      correct: server.correct,
+      wrong: server.wrong,
       date: new Date().toISOString(),
-      passed,
-      topicAnalysis: [...topics.entries()].map(([topic, v]) => ({ topic, ...v })),
-      awardedDiscount,
+      passed: server.passed,
+      topicAnalysis: server.topicAnalysis,
+      awardedDiscount: server.awardedDiscount,
+      firstAttempt: server.firstAttempt,
     };
+    const rewarded = server.firstAttempt ? server.score : 0;
     setState((s) =>
       withXp(
         {
           ...s,
           examAttempts: [attempt, ...s.examAttempts],
-          points: s.points + score,
+          points: s.points + rewarded,
           notifications: [
             {
               id: uid("n"),
               type: "exam",
               title: `نتیجه آزمون ${ch.title}`,
-              body: `نمره شما: ${score} از ۱۰۰${awardedDiscount ? `. تخفیف ٪${awardedDiscount} برای فصل بعد فعال شد!` : ""}`,
+              body: `نمره شما: ${server.score} از ۱۰۰${server.awardedDiscount ? `. تخفیف ٪${server.awardedDiscount} برای فصل بعد فعال شد!` : ""}`,
               createdAt: new Date().toISOString(),
               read: false,
               link: `/chapters/${ch.id}/exam/result/${attempt.id}`,
@@ -869,50 +860,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             ...s.notifications,
           ],
         },
-        score
+        rewarded
       )
     );
-    if (backendEnabled() && user)
-      void (async () => {
-        // Answer indices only — the server grades and sends the result +
-        // performance-discount notification (in-app + SMS) via NotificationService.
-        const server = await backendSubmitExam(
-          user.id,
-          {
-            examId: attempt.examId,
-            chapterId: ch.id,
-            score: attempt.score,
-            correct: attempt.correct,
-            wrong: attempt.wrong,
-            passed: attempt.passed,
-            topicAnalysis: attempt.topicAnalysis,
-            awardedDiscount: attempt.awardedDiscount ?? 0,
-          },
-          answers
-        );
-        // The server grade is authoritative — sync the stored attempt when it differs.
-        if (
-          server &&
-          (server.score !== attempt.score ||
-            server.awardedDiscount !== (attempt.awardedDiscount ?? 0))
-        ) {
-          setState((s) => ({
-            ...s,
-            examAttempts: s.examAttempts.map((a) =>
-              a.id === attempt.id
-                ? {
-                    ...a,
-                    score: server.score,
-                    correct: server.correct,
-                    wrong: server.wrong,
-                    passed: server.passed,
-                    awardedDiscount: server.awardedDiscount,
-                  }
-                : a
-            ),
-          }));
-        }
-      })();
     return attempt;
   };
 
@@ -920,39 +870,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const isDailyQuizDone = (date: string) => state.dailyQuizDates.includes(date);
 
-  const submitQuiz = (
+  /**
+   * The server grades the quiz and returns the score, the XP awarded (first attempt
+   * only) and the review. Nothing is recorded locally without a server result.
+   */
+  const submitQuiz = async (
     quizId: string,
-    score: number,
-    total: number,
     answers: number[] = [],
     durationSeconds = 0
-  ) => {
+  ): Promise<QuizResult | null> => {
+    if (!user) return null;
+    let result: QuizResult | null = null;
+    try {
+      result = await backendSubmitQuiz(quizId, answers, durationSeconds);
+    } catch {
+      return null;
+    }
+    if (!result) return null;
     const quiz = state.quizzes.find((q) => q.id === quizId)?.title || "کوییز";
+    const awarded = result.awarded;
     setState((s) => {
       const today = new Date().toISOString().slice(0, 10);
       const isDaily = quizId === "quiz-daily";
       const alreadyDone = isDaily && s.dailyQuizDates.includes(today);
-      // Replaying the daily quiz on the same day must not grant points again.
-      const pointsGain = alreadyDone ? 0 : score;
       const attempt = {
         id: uid("qa"),
         quizId,
         title: quiz,
-        score,
-        total,
+        score: result.score,
+        total: result.total,
         date: new Date().toISOString(),
       };
       let next: PersistedState = {
         ...s,
         quizAttempts: alreadyDone ? s.quizAttempts : [attempt, ...s.quizAttempts],
         dailyQuizDates: alreadyDone ? s.dailyQuizDates : [...s.dailyQuizDates, today],
-        points: s.points + pointsGain,
+        points: s.points + awarded,
       };
-      if (!alreadyDone) next = bumpWeekly(withXp(next, pointsGain), "quiz");
+      if (!alreadyDone) next = bumpWeekly(withXp(next, awarded), "quiz");
       return next;
     });
-    if (backendEnabled() && user)
-      void backendSubmitQuiz(user.id, quizId, score, total, answers, durationSeconds);
+    return result;
   };
 
   /* ---------- live matches ---------- */

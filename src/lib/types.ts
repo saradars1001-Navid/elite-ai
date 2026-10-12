@@ -44,7 +44,8 @@ export interface ExamQuestion {
   id: string;
   text: string;
   options: string[];
-  correct: number;
+  /** Only present in local admin data; the server never sends it before grading. */
+  correct?: number;
   topic: string;
 }
 
@@ -54,6 +55,8 @@ export interface Exam {
   title: string;
   durationMinutes: number;
   passScore: number;
+  /** Total question count (the questions themselves are only sent to buyers). */
+  questionCount?: number;
   questions: ExamQuestion[];
 }
 
@@ -95,8 +98,20 @@ export interface QuizQuestion {
   id: string;
   text: string;
   options: string[];
+  /** Not sent before the quiz is submitted; see QuizResult.review. */
+  correct?: number;
+  explanation?: string;
+}
+
+/** Server-graded result of a quiz attempt. `review` is index-aligned with the questions. */
+export interface QuizResult {
+  score: number;
+  total: number;
   correct: number;
-  explanation: string;
+  /** Points/XP actually awarded (0 for retakes). */
+  awarded: number;
+  firstAttempt: boolean;
+  review: { correct: number; explanation: string }[];
 }
 
 export interface Quiz {
@@ -247,6 +262,7 @@ export interface ExamAttempt {
   passed: boolean;
   topicAnalysis: { topic: string; correct: number; total: number }[];
   awardedDiscount?: number;
+  firstAttempt?: boolean;
 }
 
 export interface QuizAttempt {

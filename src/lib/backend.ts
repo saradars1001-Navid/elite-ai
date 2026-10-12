@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured, authErrorMessage } from "./supabase";
 import { CHAPTERS } from "./data";
 import type {
+  QuizResult,
   AiTool,
   AppUser,
   Chapter,
@@ -230,23 +231,13 @@ export async function backendSubmitExercise(
 }
 
 /**
- * Submit the exam to the backend (answer indices only — never the client's
- * score). In Laravel mode the server grades, stores the attempt and sends the
- * result + performance-discount notification (in-app + SMS). Returns the
- * server's authoritative result, or null when unreachable.
+ * Grade a chapter exam on the server (answer indices only — the client never sends
+ * or computes a score). The server records the attempt, awards XP/discount on the
+ * first attempt, sends the result notification and returns the review. Returns null
+ * when the backend is unreachable or the exam is not available.
  */
 export async function backendSubmitExam(
-  userId: string,
-  attempt: {
-    examId: string;
-    chapterId: string;
-    score: number;
-    correct: number;
-    wrong: number;
-    passed: boolean;
-    topicAnalysis: unknown;
-    awardedDiscount: number;
-  },
+  chapterId: string,
   answers: (number | null)[]
 ): Promise<{
   attemptId: number | string;
@@ -256,36 +247,25 @@ export async function backendSubmitExam(
   passed: boolean;
   awardedDiscount: number;
   discountChapterId: string | null;
+  firstAttempt: boolean;
+  topicAnalysis: { topic: string; correct: number; total: number }[];
+  review: { correct: number }[];
 } | null> {
-  if (isLaravelConfigured()) {
-    return laravelSubmitExam(attempt.chapterId, answers);
-  }
-  await supabase!.from("exam_attempts").insert({
-    user_id: userId,
-    exam_id: attempt.examId,
-    score: attempt.score,
-    correct_count: attempt.correct,
-    wrong_count: attempt.wrong,
-    passed: attempt.passed,
-    topic_analysis: attempt.topicAnalysis,
-    awarded_discount: attempt.awardedDiscount,
-  });
-  return null;
+  if (!isLaravelConfigured()) return null;
+  return laravelSubmitExam(chapterId, answers);
 }
 
+/**
+ * Submit a quiz to the server, which grades it and returns the score, the XP awarded
+ * (first attempt only) and the review (answer key + explanation). Null when offline.
+ */
 export async function backendSubmitQuiz(
-  userId: string,
   quizId: string,
-  score: number,
-  total: number,
   answers: number[] = [],
   durationSeconds = 0
-): Promise<void> {
-  if (isLaravelConfigured()) {
-    await laravelSubmitQuiz(quizId, answers, durationSeconds);
-    return;
-  }
-  await supabase!.from("quiz_attempts").insert({ user_id: userId, quiz_id: quizId, score, total });
+): Promise<QuizResult | null> {
+  if (!isLaravelConfigured()) return null;
+  return laravelSubmitQuiz(quizId, answers, durationSeconds);
 }
 
 export async function backendCreateNote(

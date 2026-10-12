@@ -414,7 +414,7 @@ export default function ChapterDetail() {
                 <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted">
                   <span className="flex items-center gap-1.5">
                     <ClipboardCheck size={16} className="text-sky" />{" "}
-                    {toFa(ch.exam.questions.length)} سؤال
+                    {toFa(ch.exam.questionCount ?? ch.exam.questions.length)} سؤال
                   </span>
                   <span className="flex items-center gap-1.5">
                     <Clock size={16} className="text-sky" /> {toFa(ch.exam.durationMinutes)} دقیقه
