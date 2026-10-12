@@ -8,3 +8,7 @@
 /storage/logs/*
 /public/storage
 /coverage
+
+# generated test/tooling output — never commit
+.phpunit.result.cache
+/bootstrap/cache/*.php
