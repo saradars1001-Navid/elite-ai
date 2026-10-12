@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Chapter;
 use App\Models\Coupon;
-use App\Models\DiscountRule;
 use App\Models\Purchase;
 use App\Models\User;
 use App\Models\WalletTransaction;
@@ -299,9 +298,11 @@ class CheckoutController extends Controller
         if ($chapter->index > 1) {
             $previous = Chapter::where('index', $chapter->index - 1)->first();
             if ($previous) {
-                $best = DB::table('exam_attempts')->where('user_id', $userId)->where('chapter_id', $previous->id)->max('score');
-                if ($best !== null) {
-                    $performance = (DiscountRule::first()?->percentFor((int) $best)) ?? 0;
+                // Only the first attempt on the previous chapter can unlock the discount (the
+                // one whose awarded_discount was recorded), so retaking the exam cannot raise it.
+                $first = DB::table('exam_attempts')->where('user_id', $userId)->where('chapter_id', $previous->id)->orderBy('id')->first();
+                if ($first) {
+                    $performance = (int) ($first->awarded_discount ?? 0);
                 }
             }
         }

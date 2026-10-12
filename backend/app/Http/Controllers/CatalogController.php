@@ -18,7 +18,7 @@ class CatalogController extends Controller
     {
         // quizzes live in their own table (no chapter_id FK), so they are
         // fetched separately below; chapters only eager-load their lessons.
-        $chapters = Chapter::with('lessons')->orderBy('index')->get();
+        $chapters = Chapter::with(['lessons', 'exam.questions'])->orderBy('index')->get();
         // The catalog is public, but a signed-in buyer must still be recognised
         // so their paid chapters keep their lesson content. The optional route
         // has no auth middleware, so the bearer token is resolved by hand here.
@@ -72,7 +72,30 @@ class CatalogController extends Controller
             return $data;
         })->values();
 
-        return [...$c->toArray(), 'duration' => $c->duration_minutes, 'oldPrice' => $c->old_price, 'previewCount' => $c->preview_count, 'instructor' => ['name' => $c->instructor_name, 'role' => $c->instructor_role], 'lessons' => $lessons];
+        return [...$c->toArray(), 'duration' => $c->duration_minutes, 'oldPrice' => $c->old_price, 'previewCount' => $c->preview_count, 'instructor' => ['name' => $c->instructor_name, 'role' => $c->instructor_role], 'lessons' => $lessons, 'exam' => $this->exam($c, $hasAccess)];
+    }
+
+    /**
+     * Exam meta is public. Its questions are part of the paid chapter, so they are
+     * only sent to viewers with access, and never with the answer key.
+     */
+    private function exam(Chapter $c, bool $hasAccess): ?array
+    {
+        $exam = $c->exam;
+        if (! $exam) {
+            return null;
+        }
+
+        return [
+            'id' => $exam->id,
+            'title' => $exam->title,
+            'durationMinutes' => (int) $exam->duration_minutes,
+            'passScore' => (int) $exam->pass_score,
+            'questionCount' => $exam->questions->count(),
+            'questions' => $hasAccess
+                ? $exam->questions->map(fn ($q) => ['id' => $q->id, 'text' => $q->text, 'options' => $q->options, 'topic' => $q->topic])->values()
+                : [],
+        ];
     }
 
     private function quiz(Quiz $q): array

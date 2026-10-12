@@ -6,6 +6,7 @@ use App\Models\Chapter;
 use App\Models\DiscountRule;
 use App\Models\Exam;
 use App\Models\Purchase;
+use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -51,28 +52,46 @@ class ExamController extends Controller
         $total = $questions->count();
         $score = $total > 0 ? (int) round($correct / $total * 100) : 0;
         $passed = $score >= $exam->pass_score;
-
-        // Performance discount applies only when passed AND a next chapter exists.
         $next = Chapter::where('index', $chapter->index + 1)->first();
-        $awardedDiscount = $passed && $next ? (DiscountRule::first()?->percentFor($score) ?? 0) : 0;
 
-        $attempt = DB::transaction(function () use ($request, $chapter, $score, $correct, $total, $passed, $awardedDiscount) {
+        // Per-topic breakdown and the answer key (returned only after grading).
+        $topics = [];
+        foreach ($questions as $index => $question) {
+            $topic = $question->topic ?: 'عمومی';
+            $topics[$topic] ??= ['topic' => $topic, 'correct' => 0, 'total' => 0];
+            $topics[$topic]['total']++;
+            if (isset($answers[$index]) && (int) $answers[$index] === (int) $question->correct) {
+                $topics[$topic]['correct']++;
+            }
+        }
+        $topicAnalysis = array_values($topics);
+        $review = $questions->map(fn ($q) => ['correct' => (int) $q->correct])->values();
+
+        [$attempt, $awardedDiscount, $firstAttempt] = DB::transaction(function () use ($request, $chapter, $score, $correct, $total, $passed, $next, $topicAnalysis) {
+            // Lock the user so two parallel submits cannot both count as the first attempt.
+            $user = User::whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
+            // Only the first attempt earns XP, points and the performance discount. Retakes are
+            // recorded for history but cannot farm rewards or improve the discount later.
+            $firstAttempt = ! DB::table('exam_attempts')->where('user_id', $user->id)->where('chapter_id', $chapter->id)->exists();
+            $discount = $firstAttempt && $passed && $next ? (DiscountRule::first()?->percentFor($score) ?? 0) : 0;
             $attempt = DB::table('exam_attempts')->insertGetId([
-                'user_id' => $request->user()->id,
+                'user_id' => $user->id,
                 'chapter_id' => $chapter->id,
                 'score' => $score,
                 'correct' => $correct,
                 'wrong' => $total - $correct,
                 'passed' => $passed,
-                'topic_analysis' => json_encode([]),
-                'awarded_discount' => $awardedDiscount,
+                'topic_analysis' => json_encode($topicAnalysis),
+                'awarded_discount' => $discount,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-            $request->user()->increment('xp', $score);
-            $request->user()->increment('points', $score);
+            if ($firstAttempt) {
+                $user->increment('xp', $score);
+                $user->increment('points', $score);
+            }
 
-            return $attempt;
+            return [$attempt, $discount, $firstAttempt];
         });
 
         $this->notifyResult($request->user(), $chapter, $next, $score, $passed, $awardedDiscount, (int) $exam->pass_score);
@@ -85,6 +104,9 @@ class ExamController extends Controller
             'passed' => $passed,
             'awardedDiscount' => $awardedDiscount,
             'discountChapterId' => $next?->id,
+            'firstAttempt' => $firstAttempt,
+            'topicAnalysis' => $topicAnalysis,
+            'review' => $review,
         ]);
     }
 

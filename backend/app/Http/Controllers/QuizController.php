@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -31,15 +32,26 @@ class QuizController extends Controller
         }
         $total = $questions->count() * $quiz->points_per_question;
         $score = $correct * $quiz->points_per_question;
-        $attempt = DB::transaction(function () use ($request, $quiz, $score, $total, $correct, $data) {
-            $attempt = QuizAttempt::create(['user_id' => $request->user()->id, 'quiz_id' => $quiz->id, 'score' => $score, 'total' => $total, 'correct_count' => $correct, 'duration_seconds' => $data['durationSeconds'] ?? null, 'answers' => $data['answers']]);
-            $request->user()->increment('xp', $score);
-            $request->user()->increment('points', $score);
+        $result = DB::transaction(function () use ($request, $quiz, $score, $total, $correct, $data) {
+            // Lock the user so two parallel submits cannot both count as the first attempt.
+            $user = User::whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
+            $firstAttempt = ! QuizAttempt::where('user_id', $user->id)->where('quiz_id', $quiz->id)->exists();
+            $attempt = QuizAttempt::create(['user_id' => $user->id, 'quiz_id' => $quiz->id, 'score' => $score, 'total' => $total, 'correct_count' => $correct, 'duration_seconds' => $data['durationSeconds'] ?? null, 'answers' => $data['answers']]);
+            // XP and points are awarded once per quiz. Retakes are recorded but earn nothing.
+            $awarded = $firstAttempt ? $score : 0;
+            if ($awarded > 0) {
+                $user->increment('xp', $awarded);
+                $user->increment('points', $awarded);
+            }
 
-            return $attempt;
+            return [$attempt, $awarded, $firstAttempt];
         });
+        [$attempt, $awarded, $firstAttempt] = $result;
 
-        return response()->json(['attempt' => $attempt, 'score' => $score, 'total' => $total, 'correct' => $correct]);
+        // The answer key is revealed only now, after grading.
+        $review = $questions->map(fn ($q) => ['correct' => (int) $q->correct, 'explanation' => (string) ($q->explanation ?? '')])->values();
+
+        return response()->json(['attempt' => $attempt, 'score' => $score, 'total' => $total, 'correct' => $correct, 'awarded' => $awarded, 'firstAttempt' => $firstAttempt, 'review' => $review]);
     }
 
     public function leaderboard(Quiz $quiz): JsonResponse

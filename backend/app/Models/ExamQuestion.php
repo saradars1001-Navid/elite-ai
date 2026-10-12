@@ -8,6 +8,9 @@ class ExamQuestion extends Model
 {
     protected $fillable = ['id', 'exam_id', 'text', 'options', 'correct', 'topic'];
 
+    /** The answer key is only returned after the exam is graded (see ExamController::submit). */
+    protected $hidden = ['correct'];
+
     public $incrementing = false;
 
     protected $keyType = 'string';

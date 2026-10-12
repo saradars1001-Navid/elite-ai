@@ -69,8 +69,13 @@ class PricingTest extends TestCase
         ]);
     }
 
-    private function exam(string $userId, string $chapterId, int $score): void
+    /**
+     * Records an exam attempt the way ExamController does: only the first attempt is
+     * awarded a performance discount (tier of its score), retakes are stored with 0.
+     */
+    private function exam(string $userId, string $chapterId, int $score, ?int $awarded = null): void
     {
+        $tier = $score >= 90 ? 30 : ($score >= 80 ? 20 : ($score >= 70 ? 10 : 0));
         DB::table('exam_attempts')->insert([
             'user_id' => $userId,
             'chapter_id' => $chapterId,
@@ -78,6 +83,7 @@ class PricingTest extends TestCase
             'correct' => 0,
             'wrong' => 0,
             'passed' => $score >= 70,
+            'awarded_discount' => $awarded ?? $tier,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -146,17 +152,18 @@ class PricingTest extends TestCase
         $this->assertSame(860000, (int) $user->fresh()->wallet_balance);
     }
 
-    public function test_performance_uses_best_score_only(): void
+    public function test_performance_uses_first_attempt_only(): void
     {
         $user = $this->user();
         $this->chapter('ch1', 1, 100000);
         $this->chapter('ch2', 2, 200000);
-        $this->exam($user->id, 'ch1', 55);   // no tier
-        $this->exam($user->id, 'ch1', 92);   // high tier (30%)
+        $this->exam($user->id, 'ch1', 55);   // first attempt: no tier, no discount
+        $this->exam($user->id, 'ch1', 92, 0); // retake: recorded with no discount awarded
 
         $purchase = $this->buy($user, 'ch2');
 
-        $this->assertSame(140000, (int) $purchase->price);
+        // A retake cannot raise the discount after a first attempt that earned none.
+        $this->assertSame(200000, (int) $purchase->price);
     }
 
     public function test_no_exam_on_previous_chapter_means_no_discount(): void

@@ -22,6 +22,11 @@ class Chapter extends Model
         return $this->hasMany(Lesson::class)->orderBy('index');
     }
 
+    public function exam()
+    {
+        return $this->hasOne(Exam::class, 'chapter_id');
+    }
+
     public function quizzes()
     {
         return $this->hasMany(Quiz::class);

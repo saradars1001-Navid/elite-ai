@@ -8,6 +8,9 @@ class QuizQuestion extends Model
 {
     protected $fillable = ['id', 'quiz_id', 'text', 'options', 'correct', 'explanation', 'position'];
 
+    /** Answer key and explanation are only returned after the attempt is graded (see QuizController::submit). */
+    protected $hidden = ['correct', 'explanation'];
+
     public $incrementing = false;
 
     protected $keyType = 'string';
