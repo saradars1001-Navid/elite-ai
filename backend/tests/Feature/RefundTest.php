@@ -6,6 +6,7 @@ use App\Models\Chapter;
 use App\Models\Purchase;
 use App\Models\User;
 use App\Models\UserNotification;
+use App\Models\WalletTransaction;
 use App\Services\IDPayGateway;
 use App\Services\PaymentGateway;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -142,23 +143,64 @@ class RefundTest extends TestCase
         $this->assertStringContainsString('بازگشت وجه', (string) $notification->body);
     }
 
-    public function test_refund_without_gateway_reference_succeeds_offline(): void
+    public function test_refund_without_gateway_reference_needs_a_manual_note(): void
     {
         $admin = $this->user('admin');
         $buyer = $this->user();
-        // Orders without a gateway ref (e.g. wallet purchases) are refunded
-        // without calling the gateway at all.
         $purchase = $this->paidPurchase($buyer, null);
         Sanctum::actingAs($admin);
+        Http::fake();
 
+        // Not connected to a gateway: refusing to close it silently.
+        $this->postJson("/api/v1/checkout/{$purchase->id}/refund")
+            ->assertStatus(422);
+        $this->assertSame('paid', $purchase->fresh()->status);
+
+        // An explicit manual record with a reference note is accepted.
+        $this->postJson("/api/v1/checkout/{$purchase->id}/refund", ['manual' => true, 'note' => 'واریز دستی ۱۴۰۵/۰۷/۱۰'])
+            ->assertOk()
+            ->assertJsonPath('purchase.status', 'refunded');
+
+        Http::assertNothingSent();
+    }
+
+    public function test_wallet_purchase_refund_credits_the_wallet_without_calling_the_gateway(): void
+    {
+        $admin = $this->user('admin');
+        $buyer = $this->user();
+        $purchase = $this->paidPurchase($buyer, null);
+        $purchase->update(['checkout_id' => 'WALLET-'.Str::uuid()]);
+        Sanctum::actingAs($admin);
         Http::fake();
 
         $this->postJson("/api/v1/checkout/{$purchase->id}/refund")
             ->assertOk()
             ->assertJsonPath('purchase.status', 'refunded');
 
+        $this->assertSame(50000, (int) $buyer->fresh()->wallet_balance);
+        $this->assertDatabaseHas('wallet_transactions', [
+            'user_id' => $buyer->id,
+            'type' => 'refund',
+            'amount' => 50000,
+            'balance_after' => 50000,
+            'purchase_id' => $purchase->id,
+        ]);
         Http::assertNothingSent();
-        $this->assertSame('refunded', $purchase->fresh()->status);
+    }
+
+    public function test_repeated_refund_credits_the_wallet_only_once(): void
+    {
+        $admin = $this->user('admin');
+        $buyer = $this->user();
+        $purchase = $this->paidPurchase($buyer, null);
+        $purchase->update(['checkout_id' => 'WALLET-'.Str::uuid()]);
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/v1/checkout/{$purchase->id}/refund")->assertOk();
+        $this->postJson("/api/v1/checkout/{$purchase->id}/refund")->assertStatus(422);
+
+        $this->assertSame(50000, (int) $buyer->fresh()->wallet_balance);
+        $this->assertSame(1, WalletTransaction::where('purchase_id', $purchase->id)->where('type', 'refund')->count());
     }
 
     public function test_refund_fails_when_gateway_rejects_and_order_stays_paid(): void
@@ -177,7 +219,7 @@ class RefundTest extends TestCase
 
         $this->postJson("/api/v1/checkout/{$purchase->id}/refund")
             ->assertStatus(502)
-            ->assertJson(['message' => 'بازگشت وجه در درگاه ناموفق بود. مبلغ را به‌صورت دستی بررسی کنید.']);
+            ->assertJson(['message' => 'بازگشت وجه در درگاه ناموفق بود. مبلغ را بررسی کنید یا با «بازگشت دستی» ثبت کنید.']);
 
         $purchase->refresh();
         $this->assertSame('paid', $purchase->status);
@@ -201,7 +243,7 @@ class RefundTest extends TestCase
 
         $this->postJson("/api/v1/checkout/{$purchase->id}/refund")
             ->assertStatus(502)
-            ->assertJson(['message' => 'بازگشت وجه در درگاه ناموفق بود. مبلغ را به‌صورت دستی بررسی کنید.']);
+            ->assertJson(['message' => 'بازگشت وجه در درگاه ناموفق بود. مبلغ را بررسی کنید یا با «بازگشت دستی» ثبت کنید.']);
 
         // Unlike Zarinpal, IDPay's refund fails locally — no HTTP request is made.
         Http::assertNothingSent();

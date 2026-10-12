@@ -29,6 +29,18 @@ class Purchase extends Model
      * Derived access status exposed to the API: a pending user refund request
      * is represented by refund_requested_at set while refund_rejected_at is null.
      */
+    /** Bought with wallet balance (checkout id is prefixed by the flow marker). */
+    public function isWalletPurchase(): bool
+    {
+        return str_starts_with((string) $this->checkout_id, 'WALLET-');
+    }
+
+    /** Fully discounted, granted without a payment. */
+    public function isFreePurchase(): bool
+    {
+        return str_starts_with((string) $this->checkout_id, 'FREE-');
+    }
+
     public function isRefundPending(): bool
     {
         return $this->refund_requested_at !== null && $this->refund_rejected_at === null && $this->refunded_at === null;

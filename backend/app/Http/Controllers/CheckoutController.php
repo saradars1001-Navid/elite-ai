@@ -6,11 +6,13 @@ use App\Models\Chapter;
 use App\Models\Coupon;
 use App\Models\DiscountRule;
 use App\Models\Purchase;
+use App\Models\User;
 use App\Models\WalletTransaction;
 use App\Services\GatewayBinding;
 use App\Services\NotificationService;
 use App\Services\PaymentEventLogger;
 use App\Services\PaymentGateway;
+use App\Services\PurchaseRefunder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,35 +39,43 @@ class CheckoutController extends Controller
             return response()->json(['message' => 'شما قبلاً این فصل را خریده‌اید.'], 409);
         }
 
-        $pricing = $this->price($request->user()->id, $chapter, $data['couponCode'] ?? null);
-        if ($pricing['finalPrice'] <= 0) {
-            // Fully discounted (0 تومان) — grant access directly without a gateway.
-            $purchase = DB::transaction(function () use ($request, $chapter, $pricing, $data) {
-                $purchase = $this->newPurchase($request->user()->id, $chapter, $pricing, 'FREE', $data['couponCode'] ?? null);
-                $purchase->update(['status' => 'paid', 'receipt_id' => 'FREE-'.strtoupper(Str::random(8)), 'refunded_at' => null]);
-                $this->bumpCoupon($purchase->coupon_code);
+        $userId = $request->user()->id;
+        $pricing = $this->price($userId, $chapter, $data['couponCode'] ?? null);
+        $isFree = $pricing['finalPrice'] <= 0;
+        $useWallet = ($data['paymentMethod'] ?? 'gateway') === 'wallet';
 
-                return $purchase;
-            });
+        // Free (fully discounted) and wallet orders settle immediately, so the whole
+        // decision and the write happen under a row lock on the buyer: two concurrent
+        // requests cannot both pass the balance check, both grant access, or both
+        // take the last coupon use.
+        if ($isFree || $useWallet) {
+            $code = $data['couponCode'] ?? null;
+            $outcome = DB::transaction(function () use ($userId, $chapter, $pricing, $code, $isFree) {
+                $user = User::whereKey($userId)->lockForUpdate()->firstOrFail();
 
-            return response()->json(['purchaseId' => $purchase->id, 'amount' => 0, 'checkoutUrl' => null]);
-        }
+                if ($this->hasPaidAccess($userId, $chapter->id)) {
+                    return ['error' => 'owned'];
+                }
+                if (! $isFree && (int) $user->wallet_balance < $pricing['finalPrice']) {
+                    return ['error' => 'insufficient'];
+                }
+                if (! $this->claimCoupon($pricing, $code)) {
+                    return ['error' => 'coupon'];
+                }
 
-        // Buy with wallet balance — server-side balance check + ledger entry.
-        if (($data['paymentMethod'] ?? 'gateway') === 'wallet') {
-            $user = $request->user();
-            $balance = (int) $user->wallet_balance;
-            if ($balance < $pricing['finalPrice']) {
-                return response()->json(['message' => 'موجودی کیف پول کافی نیست. لطفاً ابتدا کیف پول را شارژ کنید.'], 422);
-            }
-            $purchase = DB::transaction(function () use ($request, $user, $balance, $chapter, $pricing, $data) {
-                $newBalance = $balance - $pricing['finalPrice'];
+                if ($isFree) {
+                    $purchase = $this->newPurchase($userId, $chapter, $pricing, 'FREE', $code);
+                    $purchase->update(['status' => 'paid', 'receipt_id' => 'FREE-'.strtoupper(Str::random(8)), 'refunded_at' => null]);
+
+                    return ['purchase' => $purchase];
+                }
+
+                $newBalance = (int) $user->wallet_balance - $pricing['finalPrice'];
                 $user->update(['wallet_balance' => $newBalance]);
-                $purchase = $this->newPurchase($request->user()->id, $chapter, $pricing, 'WALLET', $data['couponCode'] ?? null);
+                $purchase = $this->newPurchase($userId, $chapter, $pricing, 'WALLET', $code);
                 $purchase->update(['status' => 'paid', 'receipt_id' => 'WLT-'.strtoupper(Str::random(8)), 'refunded_at' => null]);
-                $this->bumpCoupon($purchase->coupon_code);
                 WalletTransaction::create([
-                    'user_id' => $request->user()->id,
+                    'user_id' => $userId,
                     'type' => 'purchase',
                     'amount' => $pricing['finalPrice'],
                     'balance_after' => $newBalance,
@@ -74,10 +84,23 @@ class CheckoutController extends Controller
                     'description' => 'خرید فصل '.$chapter->title,
                 ]);
 
-                return $purchase;
+                return ['purchase' => $purchase];
             });
 
-            return response()->json(['purchaseId' => $purchase->id, 'amount' => 0, 'checkoutUrl' => null, 'walletPaid' => true]);
+            if (isset($outcome['error'])) {
+                return match ($outcome['error']) {
+                    'owned' => response()->json(['message' => 'شما قبلاً این فصل را خریده‌اید.'], 409),
+                    'insufficient' => response()->json(['message' => 'موجودی کیف پول کافی نیست. لطفاً ابتدا کیف پول را شارژ کنید.'], 422),
+                    default => response()->json(['message' => 'کد تخفیف دیگر معتبر نیست.'], 422),
+                };
+            }
+
+            /** @var Purchase $purchase */
+            $purchase = $outcome['purchase'];
+
+            return $isFree
+                ? response()->json(['purchaseId' => $purchase->id, 'amount' => 0, 'checkoutUrl' => null])
+                : response()->json(['purchaseId' => $purchase->id, 'amount' => 0, 'checkoutUrl' => null, 'walletPaid' => true]);
         }
 
         // A chapter holds at most one order per (user, status) — the schema has a
@@ -240,33 +263,30 @@ class CheckoutController extends Controller
     public function refund(Request $request, Purchase $purchase): JsonResponse
     {
         abort_unless($request->user()->role === 'admin', 403);
-        if ($purchase->status === 'refunded') {
-            return response()->json(['message' => 'این خرید قبلاً مسترد شده است.'], 422);
-        }
-        if ($purchase->status !== 'paid') {
-            return response()->json(['message' => 'فقط خرید موفق قابل بازگشت است.'], 422);
-        }
-
-        $gatewayOk = true;
-        if ($purchase->expectedAuthority()) {
-            $result = $this->gateway->refund((string) $purchase->expectedAuthority(), (int) $purchase->price);
-            $gatewayOk = $result['ok'];
-        }
-        if ($gatewayOk) {
-            $purchase->update(['status' => 'refunded', 'refunded_at' => now()]);
-            $chapterTitle = $purchase->chapter?->title ?? 'فصل آموزشی';
-            app(NotificationService::class)->send(
-                $purchase->user,
-                'payment',
-                'بازگشت وجه',
-                'مبلغ خرید فصل «'.$chapterTitle.'» به شما بازگردانده شد.',
-                ['link' => '/profile']
-            );
-
-            return response()->json(['ok' => true, 'purchase' => $purchase]);
+        $data = $request->validate([
+            'manual' => ['sometimes', 'boolean'],
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
+        $manual = (bool) ($data['manual'] ?? false);
+        if ($manual && trim((string) ($data['note'] ?? '')) === '') {
+            return response()->json(['message' => 'برای بازگشت دستی، یادداشت (مرجع بازگشت) الزامی است.'], 422);
         }
 
-        return response()->json(['message' => 'بازگشت وجه در درگاه ناموفق بود. مبلغ را به‌صورت دستی بررسی کنید.'], 502);
+        $result = app(PurchaseRefunder::class)->refund($purchase, $manual, $data['note'] ?? null, $request->user()->id);
+        if (! $result['ok']) {
+            return response()->json(['message' => $result['message']], $result['status']);
+        }
+
+        $chapterTitle = $purchase->chapter?->title ?? 'فصل آموزشی';
+        app(NotificationService::class)->send(
+            $purchase->user,
+            'payment',
+            'بازگشت وجه',
+            'مبلغ خرید فصل «'.$chapterTitle.'» به شما بازگردانده شد.',
+            ['link' => '/profile']
+        );
+
+        return response()->json(['ok' => true, 'purchase' => $result['purchase']]);
     }
 
     /* ──────────────────────── pricing (server authority) ──────────────────────── */
@@ -314,15 +334,14 @@ class CheckoutController extends Controller
     }
 
     /** Count a redeemed coupon toward its max_uses (wallet / free flows). */
-    private function bumpCoupon(?string $couponCode): void
+    /** Claims one use of the coupon for a settled (free/wallet) order. False = code no longer usable. */
+    private function claimCoupon(array $pricing, ?string $couponCode): bool
     {
-        if (! $couponCode) {
-            return;
+        if ($pricing['couponPercent'] <= 0 || ! $couponCode) {
+            return true;
         }
-        $coupon = Coupon::where('code', $couponCode)->first();
-        if ($coupon) {
-            $coupon->increment('used_count');
-        }
+
+        return Coupon::redeem(strtoupper(trim($couponCode)));
     }
 
     private function newPurchase(string $userId, Chapter $chapter, array $pricing, string $checkoutId, ?string $couponCode = null): Purchase

@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Purchase;
 use App\Services\NotificationService;
-use App\Services\PaymentGateway;
+use App\Services\PurchaseRefunder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -22,8 +22,6 @@ use Illuminate\Http\Request;
  */
 class RefundController extends Controller
 {
-    public function __construct(private PaymentGateway $gateway) {}
-
     /** Buyer requests a refund for one of their own paid purchases. */
     public function request(Request $request, Purchase $purchase): JsonResponse
     {
@@ -70,23 +68,30 @@ class RefundController extends Controller
         return response()->json(['items' => $items]);
     }
 
-    /** Admin: approve the request — refund at the gateway and close it. */
+    /**
+     * Admin: approve the request. The refund itself (wallet credit, gateway refund
+     * or manual record) is done by PurchaseRefunder under a row lock.
+     */
     public function approve(Request $request, Purchase $purchase): JsonResponse
     {
         if (! $purchase->isRefundPending()) {
             return response()->json(['message' => 'درخواست بازگشت وجه فعالی برای این خرید وجود ندارد.'], 422);
         }
-
-        $gatewayOk = true;
-        if ($purchase->expectedAuthority()) {
-            $result = $this->gateway->refund((string) $purchase->expectedAuthority(), (int) $purchase->price);
-            $gatewayOk = $result['ok'];
+        $data = $request->validate([
+            'manual' => ['sometimes', 'boolean'],
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
+        $manual = (bool) ($data['manual'] ?? false);
+        if ($manual && trim((string) ($data['note'] ?? '')) === '') {
+            return response()->json(['message' => 'برای بازگشت دستی، یادداشت (مرجع بازگشت) الزامی است.'], 422);
         }
-        if (! $gatewayOk) {
-            return response()->json(['message' => 'بازگشت وجه در درگاه ناموفق بود. مبلغ را به‌صورت دستی بررسی کنید.'], 502);
+
+        $result = app(PurchaseRefunder::class)->refund($purchase, $manual, $data['note'] ?? null, $request->user()->id);
+        if (! $result['ok']) {
+            return response()->json(['message' => $result['message']], $result['status']);
         }
 
-        $purchase->update(['status' => 'refunded', 'refunded_at' => now()]);
+        $purchase = $result['purchase'];
         $chapterTitle = $purchase->chapter?->title ?? 'فصل آموزشی';
         app(NotificationService::class)->send(
             $purchase->user,

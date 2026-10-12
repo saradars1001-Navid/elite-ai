@@ -218,7 +218,7 @@ class RefundRequestTest extends TestCase
 
         $this->postJson("/api/v1/admin/refunds/{$purchase->id}/approve")
             ->assertStatus(502)
-            ->assertJson(['message' => 'بازگشت وجه در درگاه ناموفق بود. مبلغ را به‌صورت دستی بررسی کنید.']);
+            ->assertJson(['message' => 'بازگشت وجه در درگاه ناموفق بود. مبلغ را بررسی کنید یا با «بازگشت دستی» ثبت کنید.']);
 
         $purchase->refresh();
         $this->assertSame('paid', $purchase->status);
